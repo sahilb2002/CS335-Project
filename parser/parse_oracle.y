@@ -25,12 +25,14 @@ The syntax [x] on the right-hand side of a production denotes zero or one occurr
 %token<str> STRING
 %token<str> BOOL
 %token<str> LONG
+%token<str> TypeIdentifier
 
 %token<str> KEY_STATIC
 %token<str> KEY_RETURN
 %token<str> KEY_NEW
 %token<str> KEY_THIS
 %token<str> KEY_SUPER
+%token<str> KEY_THROWS
 
 %token<str> KEY_INT
 %token<str> KEY_BYTE
@@ -49,6 +51,7 @@ The syntax [x] on the right-hand side of a production denotes zero or one occurr
 %token<str> KEY_WHILE
 %token<str> KEY_IF
 %token<str> KEY_ELSE
+%token<str> KEY_FINAL
 
 %token<str> KEY_PRIVATE
 %token<str> KEY_PUBLIC
@@ -108,13 +111,11 @@ ClassType:  TypeIdentifier
 ;
 
 
-
-TypeIdentifier: Identifier
-
-InterfaceType:  InterfaceType_b
+InterfaceType:  ClassType
 ;
 
-InterfaceType_b:    InterfaceType_b '.' TypeIdentifier;
+TypeVariable:  TypeIdentifier
+;
 
 ArrayType:      PrimitiveType Dims
 |               ClassOrInterfaceType Dims
@@ -127,7 +128,10 @@ Dims:            %empty
 |                   '[' ']' '[' ']' '[' ']'
 ;
 
-TypeVariable:   Identifier
+TypeParameter: TypeIdentifier
+;
+
+
 
 
 ClassModifier:      KEY_PUBLIC
@@ -135,11 +139,10 @@ ClassModifier:      KEY_PUBLIC
 |                   KEY_STATIC
 ;
 
-ClassBody :     '{' ClassBodyDeclaration_s '}'
+ClassBody :     '{' ClassBodyDeclaration_c '}'
 ;
 
-ClassBodyDeclaration_s: ClassBodyDeclaration_s ClassBodyDeclaration
-|                       ClassBodyDeclaration
+ClassBodyDeclaration_c: ClassBodyDeclaration_c ClassBodyDeclaration
 |                       %empty
 ;
 
@@ -152,14 +155,13 @@ ClassBodyDeclaration:   ClassMemberDeclaration
 ClassMemberDeclaration: FieldDeclaration
 |                       MethodDeclaration
 |                       ClassDeclaration
-|                       InterfaceDeclaration
 |                       ';'
 ;
 
-FieldDeclaration:   FieldModifier_b UnannType VariableDeclaratorList ';'
+FieldDeclaration:   FieldModifier_c UnannType VariableDeclaratorList ';'
 ;
 
-FieldModifier_b:    FieldModifier_b FieldModifier
+FieldModifier_c:    FieldModifier_c FieldModifier
 |                   FieldModifier
 |                   %empty
 ;
@@ -186,10 +188,7 @@ UnannClassOrInterfaceType:  UnannClassType
 |                           UnannInterfaceType
 ;
 
-UnannClassType: UnannClassType_b
-;
-
-UnannClassType_b:   UnannClassType_b '.' TypeIdentifier
+UnannClassType:   UnannClassOrInterfaceType '.' TypeIdentifier
 |                   TypeIdentifier 
 ;
 
@@ -204,11 +203,10 @@ UnannArrayType: UnannPrimitiveType Dims
 |               UnannTypeVariable Dims
 ;
 
-MethodDeclaration:  MethodModifier_b MethodHeader MethodBody
+MethodDeclaration:  MethodModifier_c MethodHeader MethodBody
 ;
 
-MethodModifier_b:   MethodModifier_b MethodModifier
-|                   MethodModifier
+MethodModifier_c:   MethodModifier_c MethodModifier
 |                   %empty
 ;
 
@@ -228,6 +226,9 @@ Result:         UnannType
 MethodDeclarator:   Identifier '('ReceiverParameter_b FormalParameterList_b ')' Dims_b
 ;
 
+Dims_b :        %empty
+|               Dims
+
 ReceiverParameter_b:    ReceiverParameter ','
 |                       %empty
 ;
@@ -243,10 +244,10 @@ FormalParameterList_b:  FormalParameterList
 |                       %empty
 ;
 
-FormalParameterList:    FormalParameter FormalParameter_b
+FormalParameterList:    FormalParameter FormalParameter_c
 ;
 
-FormalParameter_b:  FormalParameter_b ',' FormalParameter
+FormalParameter_c:  FormalParameter_c ',' FormalParameter
 |                   %empty
 ;
 
@@ -254,9 +255,81 @@ FormalParameter:    UnannType VariableDeclaratorId
 |                   VariableArityParameter
 ;
 
-VariableArityParameter: UnannType '...' Identifier
+VariableArityParameter:  UnannType '...' Identifier
+|                        KEY_FINAL UnannType '...' Identifier
 ;
 
+Throws_b:   Throws
+|           %empty
+;
+
+Throws:     KEY_THROWS ExceptionTypeList
+;
+
+ExceptionTypeList:  ExceptionType ExceptionType_c
+;
+
+ExceptionType_c:    ExceptionType_c ',' ExceptionType
+|                   %empty
+;
+
+ExceptionType:  ClassType
+|               TypeVariable
+;
+
+MethodBody:     Block
+|               ';'
+
+StaticInitializer:  KEY_STATIC Block
+;
+
+InstanceInitializer:    Block
+;
+
+ConstructorDeclaration: ConstructorModifier_c ConstructorDeclarator Throws_b ConstructorBody
+;
+
+ConstructorModifier_c:  ConstructorModifier_c ConstructorModifier
+|                       %empty
+;
+
+ConstructorModifier:    KEY_PUBLIC
+|                       KEY_PRIVATE
+;
+
+ConstructorDeclarator:  SimpleTypeName '('ReceiverParameter_b FormalParameterList_b ')'
+;
+
+SimpleTypeName: TypeIdentifier
+;
+
+ConstructorBody:    '{' ExplicitConstructorInvocation_b BlockStatements_b '}'
+;
+
+ExplicitConstructorInvocation_b:    ExplicitConstructorInvocation
+|                                   %empty
+;
+
+ExplicitConstructorInvocation:  KEY_THIS '('ArgumentList_b ')' ';'
+|                               KEY_SUPER '('ArgumentList_b ')' ';'
+|                               Primary '.' KEY_SUPER '('ArgumentList_b ')' ';'
+|                               ExpressionName '.' KEY_SUPER '('ArgumentList_b ')' ';'
+;
+
+ArgumentList_b: ArgumentList
+|               %empty
+;
+
+ArgumentList:   Expression Expression_c
+;
+
+Expression_c:   Expression_c ',' Expression
+|               %empty
+;
+
+BlockStatements_b:  BlockStatements
+|                   %empty
+;
 
 
 
