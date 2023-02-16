@@ -68,6 +68,9 @@ ESCAPE_SEQUENCE \b|\s|\t|\n|\f|\r|\"|\'|\\
 "System" return KEY_SYSTEM;
 "out" return KEY_OUT;
 "NULL" return KEY_NULL;
+"var" return KEY_VAR;
+"break" return KEY_BREAK;
+"continue" return KEY_CONTINUE;
 
 {BOOLEAN} return BOOL;
 
