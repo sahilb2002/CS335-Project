@@ -16,7 +16,18 @@ The syntax [x] on the right-hand side of a production denotes zero or one occurr
 %token<chr> UNR_OP              // unary operator (+,-,~)
 %token<chr> BIN_OP              // BInary operators
 %token<chr> ASSIGN_OP           // Assignment operators except '='
-%token<str> INC_DEC             // ++, --
+%token<str> INCREMENT           // ++
+%token<str> DECREMENT           // --
+%token<str> DOUBLE_COLON        // ::
+%token<str> LOG_OR              // ||
+%token<str> LOG_AND             // &&
+%token<str> EQUAL               // ==
+%token<str> NOT_EQUAL           // ==
+%token<str> GTR_EQUAL           // <=
+%token<str> LESS_EQUAL          // >=
+%token<str> LEFT_SHIFT          // <<
+%token<str> RIGHT_SHIFT         // >>
+%token<str> SIGN_SHIFT          // >>>
 %token<str> Identifier
 %token<str> INT
 %token<str> FLOAT
@@ -25,6 +36,7 @@ The syntax [x] on the right-hand side of a production denotes zero or one occurr
 %token<str> STRING
 %token<str> BOOL
 %token<str> LONG
+%token<str> TEXTBLOCK
 %token<str> TypeIdentifier
 
 %token<str> KEY_STATIC
@@ -33,6 +45,7 @@ The syntax [x] on the right-hand side of a production denotes zero or one occurr
 %token<str> KEY_THIS
 %token<str> KEY_SUPER
 %token<str> KEY_THROWS
+%token<str> KEY_INSTANCEOF
 
 %token<str> KEY_INT
 %token<str> KEY_BYTE
@@ -499,9 +512,9 @@ Primary:    PrimaryNoNewArray
 
 PrimaryNoNewArray:  Literal
 |                   ClassLiteral
-|                   this
-|                   TypeName '.' this
-|                   ( Expression )
+|                   KEY_THIS
+|                   TypeName '.' KEY_THIS
+|                   '(' Expression ')'
 |                   ClassInstanceCreationExpression
 |                   FieldAccess
 |                   ArrayAccess
@@ -509,10 +522,19 @@ PrimaryNoNewArray:  Literal
 |                   MethodReference
 ;
 
-ClassLiteral:       TypeName Dims '.' class
-|                   NumericType Dims '.' class
-|                   boolean Dims '.' class
-|                   void '.' class
+Literal:            INT
+|                   FLOAT
+|                   BOOL
+|                   CHAR
+|                   STRING
+|                   TEXTBLOCK
+|                   KEY_NULL
+;
+
+ClassLiteral:       TypeName Dims '.' KEY_CLASS
+|                   NumericType Dims '.' KEY_CLASS
+|                   KEY_BOOL Dims '.' KEY_CLASS
+|                   KEY_VOID '.' KEY_CLASS
 ;
 
 ClassInstanceCreationExpression:    UnqualifiedClassInstanceCreationExpression
@@ -520,7 +542,7 @@ ClassInstanceCreationExpression:    UnqualifiedClassInstanceCreationExpression
 |                                   Primary '.' UnqualifiedClassInstanceCreationExpression
 ;
 
-UnqualifiedClassInstanceCreationExpression:     new TypeArguments_s ClassOrInterfaceTypeToInstantiate '(' ArgumentList_s ')' ClassBody_s
+UnqualifiedClassInstanceCreationExpression:     KEY_NEW TypeArguments_s ClassOrInterfaceTypeToInstantiate '(' ArgumentList_s ')' ClassBody_s
 ;
 
 TypeArguments_s:    %empty
@@ -536,8 +558,8 @@ ClassBody_s:       %empty
 ;
 
 FieldAccess:       Primary '.' Identifier
-|                  super '.' Identifier
-|                  TypeName '.' super '.' Identifier
+|                  KEY_SUPER '.' Identifier
+|                  TypeName '.' KEY_SUPER '.' Identifier
 ;
 
 ArrayAccess:       ExpressionName Expression_s
@@ -548,27 +570,23 @@ MethodInvocation:   MethodName '(' ArgumentList_s ')'
 |                   TypeName '.' TypeArguments_s Identifier '(' ArgumentList_s ')'
 |                   ExpressionName '.' TypeArguments_s Identifier '(' ArgumentList_s ')'
 |                   Primary '.' TypeArguments_s Identifier '(' ArgumentList_s ')'
-|                   super '.' TypeArguments_s Identifier '(' ArgumentList_s ')'
-|                   TypeName '.' super '.' TypeArguments_s Identifier '(' ArgumentList_s ')'
+|                   KEY_SUPER '.' TypeArguments_s Identifier '(' ArgumentList_s ')'
+|                   TypeName '.' KEY_SUPER '.' TypeArguments_s Identifier '(' ArgumentList_s ')'
 ;
 
-ArgumentList:       Expression
-|                   ArgumentList ',' Expression
+MethodReference:    ExpressionName DOUBLE_COLON TypeArguments_s Identifier
+|                   Primary DOUBLE_COLON TypeArguments_s Identifier
+|                   ReferenceType DOUBLE_COLON TypeArguments_s Identifier
+|                   KEY_SUPER DOUBLE_COLON TypeArguments_s Identifier
+|                   TypeName '.' KEY_SUPER DOUBLE_COLON TypeArguments_s Identifier
+|                   ClassType DOUBLE_COLON TypeArguments_s KEY_NEW
+|                   ArrayType DOUBLE_COLON KEY_NEW
 ;
 
-MethodReference:    ExpressionName "::" TypeArguments_s Identifier
-|                   Primary "::" TypeArguments_s Identifier
-|                   ReferenceType "::" TypeArguments_s Identifier
-|                   super "::" TypeArguments_s Identifier
-|                   TypeName '.' super "::" TypeArguments_s Identifier
-|                   ClassType "::" TypeArguments_s new
-|                   ArrayType "::" new
-;
-
-ArrayCreationExpression:    new PrimitiveType DimExprs Dims
-|                           new ClassOrInterfaceType DimExprs Dims
-|                           new PrimitiveType Dims ArrayInitializer
-|                           new ClassOrInterfaceType Dims ArrayInitializer
+ArrayCreationExpression:    KEY_NEW PrimitiveType DimExprs Dims
+|                           KEY_NEW ClassOrInterfaceType DimExprs Dims
+|                           KEY_NEW PrimitiveType Dims ArrayInitializer
+|                           KEY_NEW ClassOrInterfaceType Dims ArrayInitializer
 ;
 
 DimExprs:   DimExpr DimExprs_b
@@ -602,11 +620,11 @@ ConditionalExpression:  ConditionalOrExpression
 ;
 
 ConditionalOrExpression:    ConditionalAndExpression
-|                           ConditionalOrExpression "||" ConditionalAndExpression
+|                           ConditionalOrExpression LOG_OR ConditionalAndExpression
 ;
 
 ConditionalAndExpression:   InclusiveOrExpression
-|                           ConditionalAndExpression "&&" InclusiveOrExpression
+|                           ConditionalAndExpression LOG_AND InclusiveOrExpression
 ;
 
 InclusiveOrExpression:      ExclusiveOrExpression
@@ -622,26 +640,32 @@ AndExpression:              EqualityExpression
 ;
 
 EqualityExpression:         RelationalExpression
-|                           EqualityExpression "==" RelationalExpression
-|                           EqualityExpression != RelationalExpression
+|                           EqualityExpression EQUAL RelationalExpression
+|                           EqualityExpression NOT_EQUAL RelationalExpression
 ;
 
 RelationalExpression:       ShiftExpression
 |                           RelationalExpression '<' ShiftExpression
 |                           RelationalExpression '>' ShiftExpression
-|                           RelationalExpression "<=" ShiftExpression
-|                           RelationalExpression ">=" ShiftExpression
+|                           RelationalExpression GTR_EQUAL ShiftExpression
+|                           RelationalExpression LESS_EQUAL ShiftExpression
 |                           InstanceofExpression
 ;
 
-InstanceofExpression:       RelationalExpression instanceof ReferenceType
-|                           RelationalExpression instanceof Pattern
+InstanceofExpression:       RelationalExpression KEY_INSTANCEOF ReferenceType
+|                           RelationalExpression KEY_INSTANCEOF Pattern
+;
+
+Pattern:                    TypePattern
+;
+
+TypePattern:                LocalVariableDeclaration
 ;
 
 ShiftExpression:            AdditiveExpression
-|                           ShiftExpression "<<" AdditiveExpression
-|                           ShiftExpression ">>" AdditiveExpression
-|                           ShiftExpression ">>>" AdditiveExpression
+|                           ShiftExpression LEFT_SHIFT AdditiveExpression
+|                           ShiftExpression RIGHT_SHIFT AdditiveExpression
+|                           ShiftExpression SIGN_SHIFT AdditiveExpression
 ;
 
 AdditiveExpression:         MultiplicativeExpression
@@ -662,10 +686,10 @@ UnaryExpression:            PreIncrementExpression
 |                           UnaryExpressionNotPlusMinus
 ;
 
-PreIncrementExpression:     "++" UnaryExpression
+PreIncrementExpression:     INCREMENT UnaryExpression
 ;
 
-PreDecrementExpression:     "--" UnaryExpression
+PreDecrementExpression:     DECREMENT UnaryExpression
 ;
 
 UnaryExpressionNotPlusMinus:    PostfixExpression
@@ -679,10 +703,10 @@ PostfixExpression:              Primary
 |                               PostDecrementExpression
 ;
 
-PostIncrementExpression:        PostfixExpression "++"
+PostIncrementExpression:        PostfixExpression INCREMENT
 ;
 
-PostDecrementExpression:        PostfixExpression "--"
+PostDecrementExpression:        PostfixExpression DECREMENT
 ;
 
 ConstantExpression:             Expression
