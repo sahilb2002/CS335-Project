@@ -1,6 +1,3 @@
-The syntax {x} on the right-hand side of a production denotes zero or more occurrences of x.
-The syntax [x] on the right-hand side of a production denotes zero or one occurrences of x. 
-
 %{
 
     #include<iostream>
@@ -13,9 +10,6 @@ The syntax [x] on the right-hand side of a production denotes zero or one occurr
     char* str;
 }
 
-%token<chr> UNR_OP              // unary operator (+,-,~)
-%token<chr> BIN_OP              // BInary operators
-%token<chr> ASSIGN_OP           // Assignment operators except '='
 %token<str> INCREMENT           // ++
 %token<str> DECREMENT           // --
 %token<str> DOUBLE_COLON        // ::
@@ -28,14 +22,16 @@ The syntax [x] on the right-hand side of a production denotes zero or one occurr
 %token<str> LEFT_SHIFT          // <<
 %token<str> RIGHT_SHIFT         // >>
 %token<str> SIGN_SHIFT          // >>>
+%token<str> ASSIGN_OP          // +=
+%token<str> TRIPLE_DOT          // ...
 %token<str> Identifier
 %token<str> INT
 %token<str> FLOAT
-%token<str> DOUBLE
+/* %token<str> DOUBLE */
 %token<str> CHAR
 %token<str> STRING
 %token<str> BOOL
-%token<str> LONG
+/* %token<str> LONG */
 %token<str> TEXTBLOCK
 %token<str> TypeIdentifier
 
@@ -55,7 +51,7 @@ The syntax [x] on the right-hand side of a production denotes zero or one occurr
 %token<str> KEY_DOUBLE
 %token<str> KEY_BOOL
 %token<str> KEY_CHAR
-%token<str> KEY_STRING
+/* %token<str> KEY_STRING */
 %token<str> KEY_VOID
 %token<str> KEY_VAR
 
@@ -70,7 +66,7 @@ The syntax [x] on the right-hand side of a production denotes zero or one occurr
 %token<str> KEY_PUBLIC
 %token<str> KEY_CLASS
 
-%token<str> KEY_CONST
+/* %token<str> KEY_CONST */
 %token<str> KEY_NULL
 
 %token<str> KEY_BREAK
@@ -79,17 +75,18 @@ The syntax [x] on the right-hand side of a production denotes zero or one occurr
 
 
 
-%right UNR_OP
-%right ASSIGN_OP
-%right '='
-%left BIN_OP
-%left '?'
-%left ':'
-%left INC_DEC
-%right KEY_ELSE
+/* %right UNR_OP */
+/* %right ASSIGN_OP */
+/* %right '=' */
+/* %left BIN_OP */
+/* %left '?' */
+/* %left ':' */
+/* %left INC_DEC */
+/* %right KEY_ELSE */
 
 %%
-/*parth*/
+START: ClassDeclaration;
+
 IntegralType:   KEY_INT
 |               KEY_BYTE
 |               KEY_SHORT
@@ -156,7 +153,7 @@ ClassBody :     '{' ClassBodyDeclaration_c '}'
 ;
 
 ClassBodyDeclaration_c: ClassBodyDeclaration_c ClassBodyDeclaration
-|                       %empty
+|                       ClassBodyDeclaration
 ;
 
 ClassBodyDeclaration:   ClassMemberDeclaration
@@ -172,11 +169,11 @@ ClassMemberDeclaration: FieldDeclaration
 ;
 
 FieldDeclaration:   FieldModifier_c UnannType VariableDeclaratorList ';'
+|                   UnannType VariableDeclaratorList ';'    
 ;
 
 FieldModifier_c:    FieldModifier_c FieldModifier
 |                   FieldModifier
-|                   %empty
 ;
 
 FieldModifier:  KEY_PUBLIC
@@ -199,13 +196,14 @@ UnannReferenceType: UnannClassOrInterfaceType
 
 UnannClassOrInterfaceType:  UnannClassType
 |                           UnannInterfaceType
+|                           UnannTypeVariable
 ;
 
-UnannClassType:   UnannClassOrInterfaceType '.' TypeIdentifier
-|                   TypeIdentifier 
+UnannClassType:   UnannClassOrInterfaceType '.' TypeIdentifier 
 ;
 
 UnannInterfaceType: UnannClassType
+|                   UnannTypeVariable
 ;
 
 UnannTypeVariable:  TypeIdentifier
@@ -217,10 +215,11 @@ UnannArrayType: UnannPrimitiveType Dims
 ;
 
 MethodDeclaration:  MethodModifier_c MethodHeader MethodBody
+|                   MethodHeader MethodBody
 ;
 
 MethodModifier_c:   MethodModifier_c MethodModifier
-|                   %empty
+|                   MethodModifier
 ;
 
 MethodModifier: KEY_PUBLIC
@@ -268,8 +267,8 @@ FormalParameter:    UnannType VariableDeclaratorId
 |                   VariableArityParameter
 ;
 
-VariableArityParameter:  UnannType '...' Identifier
-|                        KEY_FINAL UnannType '...' Identifier
+VariableArityParameter:  UnannType TRIPLE_DOT Identifier
+|                        KEY_FINAL UnannType TRIPLE_DOT Identifier
 ;
 
 Throws_b:   Throws
@@ -300,10 +299,11 @@ InstanceInitializer:    Block
 ;
 
 ConstructorDeclaration: ConstructorModifier_c ConstructorDeclarator Throws_b ConstructorBody
+|                       ConstructorDeclarator Throws_b ConstructorBody
 ;
 
 ConstructorModifier_c:  ConstructorModifier_c ConstructorModifier
-|                       %empty
+|                       ConstructorModifier
 ;
 
 ConstructorModifier:    KEY_PUBLIC
@@ -369,10 +369,10 @@ ClassDeclaration:   NormalClassDeclaration
 ;
 
 NormalClassDeclaration: ClassModifier_b KEY_CLASS TypeIdentifier ClassBody
+|                       KEY_CLASS TypeIdentifier ClassBody
 ;
 ClassModifier_b:    ClassModifier_b ClassModifier
 |                   ClassModifier
-|                   %empty
 ;
 LocalVariableDeclaration: LocalVariableType VariableDeclaratorList
 ;
@@ -497,15 +497,6 @@ AmbiguousName:  Identifier
 
 
 
-/* 
-##########################
-
-Yash's War Zone
-
-
-########################## */
-
-
 Primary:    PrimaryNoNewArray
 |           ArrayCreationExpression
 ;
@@ -542,11 +533,7 @@ ClassInstanceCreationExpression:    UnqualifiedClassInstanceCreationExpression
 |                                   Primary '.' UnqualifiedClassInstanceCreationExpression
 ;
 
-UnqualifiedClassInstanceCreationExpression:     KEY_NEW TypeArguments_s ClassOrInterfaceTypeToInstantiate '(' ArgumentList_s ')' ClassBody_s
-;
-
-TypeArguments_s:    %empty
-|                   TypeArguments
+UnqualifiedClassInstanceCreationExpression:     KEY_NEW '(' ArgumentList_s ')' ClassBody_s
 ;
 
 ArgumentList_s:    %empty
@@ -567,19 +554,19 @@ ArrayAccess:       ExpressionName Expression_s
 ;
 
 MethodInvocation:   MethodName '(' ArgumentList_s ')'
-|                   TypeName '.' TypeArguments_s Identifier '(' ArgumentList_s ')'
-|                   ExpressionName '.' TypeArguments_s Identifier '(' ArgumentList_s ')'
-|                   Primary '.' TypeArguments_s Identifier '(' ArgumentList_s ')'
-|                   KEY_SUPER '.' TypeArguments_s Identifier '(' ArgumentList_s ')'
-|                   TypeName '.' KEY_SUPER '.' TypeArguments_s Identifier '(' ArgumentList_s ')'
+|                   TypeName '.' Identifier '(' ArgumentList_s ')'
+|                   ExpressionName '.' Identifier '(' ArgumentList_s ')'
+|                   Primary '.' Identifier '(' ArgumentList_s ')'
+|                   KEY_SUPER '.' Identifier '(' ArgumentList_s ')'
+|                   TypeName '.' KEY_SUPER '.' Identifier '(' ArgumentList_s ')'
 ;
 
-MethodReference:    ExpressionName DOUBLE_COLON TypeArguments_s Identifier
-|                   Primary DOUBLE_COLON TypeArguments_s Identifier
-|                   ReferenceType DOUBLE_COLON TypeArguments_s Identifier
-|                   KEY_SUPER DOUBLE_COLON TypeArguments_s Identifier
-|                   TypeName '.' KEY_SUPER DOUBLE_COLON TypeArguments_s Identifier
-|                   ClassType DOUBLE_COLON TypeArguments_s KEY_NEW
+MethodReference:    ExpressionName DOUBLE_COLON Identifier
+|                   Primary DOUBLE_COLON Identifier
+|                   ReferenceType DOUBLE_COLON Identifier
+|                   KEY_SUPER DOUBLE_COLON Identifier
+|                   TypeName '.' KEY_SUPER DOUBLE_COLON Identifier
+|                   ClassType DOUBLE_COLON KEY_NEW
 |                   ArrayType DOUBLE_COLON KEY_NEW
 ;
 
@@ -608,6 +595,10 @@ AssignmentExpression: ConditionalExpression
 ;
 
 Assignment: LeftHandSide AssignmentOperator Expression
+;
+
+AssignmentOperator: ASSIGN_OP
+|                  '='
 ;
 
 LeftHandSide:   ExpressionName
