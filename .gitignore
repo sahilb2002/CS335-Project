@@ -1,1 +1,7 @@
 *.vscode
+*a.out
+*lex.yy.c
+*.tab.c
+*.tab.h
+*.output
+*test.java

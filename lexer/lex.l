@@ -4,7 +4,7 @@
     #include<vector>
     #include<fstream>
     #include<string>
-    #include "../parser/parse.tab.c"
+    #include "../parser/parse.tab.h"
 
     using namespace std;
     //vector<string> names{"NULL", "Error", "Operator", "Separator", "Identifier", "Keyword", "String Literal", "Literal", "Comment", "EOFError"};
@@ -18,20 +18,13 @@ HEX_DIGIT [0-9a-fA-F]
 BINARY [01]
 OCTAL_DIGIT [0-7]
 
-
-
-OPERATOR ">"|"<"|"=="|">="|"<="|"!="|"&&"|"||"|"+"|"-"|"*"|"/"|"&"|"|"|"^"|"%"|"<<"|">>"|">>>"
-UNINARYOPERATOR "+"|"-"|"!"|"~"
-INCDEC "++"|"--"
-ASSIGNOPERATOR "+="|"-="|"*="|"/="|"&="|"|="|"^="|"%="|"<<="|">>="|">>>="
-
 /*INTEGER*/
 HEX_NUM 0[xX]{HEX_DIGIT}+({HEX_DIGIT}|_)*{HEX_DIGIT}+
 BINARY_NUM 0[bB]{BINARY}+({BINARY}|_)*{BINARY}*
 OCTAL_NUM 0{OCTAL_DIGIT}+({OCTAL_DIGIT}|_)*{OCTAL_DIGIT}+
 INTEGER {DIGIT}|[1-9]({DIGIT}|_)*{DIGIT}+
 
-
+ASSIGNOPERATOR "+="|"-="|"*="|"/="|"&="|"|="|"^="|"%="|"<<="|">>="|">>>="
 
 /*String*/
 BOOLEAN true|false
@@ -40,11 +33,17 @@ ESCAPE_SEQUENCE \b|\s|\t|\n|\f|\r|\"|\'|\\
 %x COMMENT
 %x TEXTBLOCK
 
+/* "const" return KEY_CONST; */
+/* "System" return KEY_SYSTEM; */
+/* "new" return KEY_NEW; */
+/* "out" return KEY_OUT; */
+/* "NULL" return KEY_NULL; */
+/* "var" return KEY_VAR; */
+/* "System.out.println" return KEY_PRINT; */
 
 %%
 [ \t\n\f\r] ;
 
-"System.out.println" return KEY_PRINT;
 
 "for" return KEY_FOR;
 "if" return KEY_IF;
@@ -58,17 +57,11 @@ ESCAPE_SEQUENCE \b|\s|\t|\n|\f|\r|\"|\'|\\
 "char" return KEY_CHAR;
 "string" return KEY_STRING;
 "float" return KEY_FLOAT;
-"new" return KEY_NEW;
 "private" return KEY_PRIVATE;
 "public" return KEY_PUBLIC;
 "return" return KEY_RETURN;
 "static" return KEY_STATIC;
 "class" return KEY_CLASS;
-"const" return KEY_CONST;
-"System" return KEY_SYSTEM;
-"out" return KEY_OUT;
-"NULL" return KEY_NULL;
-"var" return KEY_VAR;
 "break" return KEY_BREAK;
 "continue" return KEY_CONTINUE;
 
@@ -145,11 +138,30 @@ ESCAPE_SEQUENCE \b|\s|\t|\n|\f|\r|\"|\'|\\
 ":" return ':';
 "@" return '@';
 "." return '.';
+"|" return '|';
+"&" return '&';
+"^" return '^';
+">" return '>';
+"<" return '<';
+"+" return '+';
+"-" return '-';
+"*" return '*';
+"/" return '/';
+"%" return '%';
+"~" return '~';
+"!" return '!';
 
-
-{INCDEC} return INC_DEC;
-{UNINARYOPERATOR} return UNR_OP;
-{OPERATOR} return BIN_OP;
+"++"    return INCREMENT;
+"--"    return DECREMENT;
+"||"    return LOG_OR;
+"&&"    return LOG_AND;
+"=="    return EQUAL;
+"!="    return NOT_EQUAL;
+"<="    return GTR_EQUAL;
+">="    return LESS_EQUAL;
+"<<"    return LEFT_SHIFT;
+">>"    return RIGHT_SHIFT;
+">>>"   return SIGN_SHIFT;
 {ASSIGNOPERATOR} return ASSIGN_OP;
 
 
@@ -157,47 +169,4 @@ ESCAPE_SEQUENCE \b|\s|\t|\n|\f|\r|\"|\'|\\
 
 int yywrap(){
     return 1;
-}
-int main(){
-    // int ntoken, vtoken;
-    // ntoken = yylex();
-    // vector<string> tokens;
-    // map<string, pair<string, int>> token_map;
-    // fstream fout;
-    // fout.open("output.csv", ios::out);
-    // while(ntoken){
-    //     //printf("%d %s\n", ntoken, yytext);
-    //     if(names[ntoken] == "Error"){ 
-    //         //perror("Unexpected character Found");
-    //         cout<<"Error at line "<<yylineno<<" illegal character "<<yytext<<" found"<<endl;
-
-    //     }
-    //     else {
-    //         if(names[ntoken] == "EOFError"){
-    //             cout<<"Error at line "<<yylineno<<" unexpected end of file, missing \"\"\"."<<endl;
-    //             break;
-    //         }
-    //         else{
-    //             if(ntoken!=8){
-    //                 if(token_map.find(yytext) == token_map.end()){
-    //                     tokens.push_back(yytext);
-    //                     token_map[yytext] = make_pair(names[ntoken], 1);
-    //                 }
-    //             else token_map[yytext].second++;
-    //             }
-    //         }
-    //     }
-    //     ntoken = yylex();
-    // }
-    // fout<<"Lexeme"<<","<<"Token"<<","<<"Count"<<"\n";
-    // for(auto i: tokens){
-    //     // if(i=="," | i==";"){
-    //     //     fout<<"\""<<i<<"\""<<","<<token_map[i].first<<","<<token_map[i].second<<"\n";
-    //     //     continue;
-    //     // }
-    //     fout<<i<<","<<token_map[i].first<<","<<token_map[i].second<<"\n";
-    // }
-    
-    // fout.close();
-    return 0;
 }
