@@ -24,6 +24,7 @@
 %token<str> SIGN_SHIFT          // >>>
 %token<str> ASSIGN_OP          // +=
 %token<str> TRIPLE_DOT          // ...
+
 %token<str> Identifier
 %token<str> INT
 %token<str> FLOAT

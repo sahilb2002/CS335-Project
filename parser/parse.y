@@ -1,7 +1,19 @@
 %{
 
     #include<iostream>
-    using namespace std;   
+    using namespace std;
+    
+    extern int yylex();
+    extern int yyparse();
+    extern int yylineno;
+    extern FILE* yyin;
+
+    void yyerror(const char *s) {
+        cout << "[Line no: " << yylineno << "] " << "error: " << "parse error: " << s << endl;
+        exit(-1);
+    }
+
+
 %}
 
 %union{
@@ -10,10 +22,10 @@
     char* str;
 }
 
-%token<chr> UNR_OP              // unary operator (+,-,~)
-%token<chr> BIN_OP              // BInary operators
-%token<chr> ASSIGN_OP           // Assignment operators except '='
-%token<str> INC_DEC             // ++, --
+/* %token<chr> UNR_OP              // unary operator (+,-,~) */
+/* %token<chr> BIN_OP              // BInary operators */
+/* %token<str> KEY_NEW */
+
 %token<str> ID
 %token<str> INT
 %token<str> FLOAT
@@ -23,9 +35,6 @@
 %token<str> BOOL
 %token<str> LONG
 
-%token<str> KEY_STATIC
-%token<str> KEY_RETURN
-%token<str> KEY_NEW
 
 %token<str> KEY_INT
 %token<str> KEY_FLOAT
@@ -41,27 +50,70 @@
 %token<str> KEY_IF
 %token<str> KEY_ELSE
 
+%token<str> KEY_CONTINUE
+%token<str> KEY_BREAK
+%token<str> KEY_RETURN
+%token<str> KEY_ASSERT
+%token<str> KEY_YIELD
+
 %token<str> KEY_PRIVATE
 %token<str> KEY_PUBLIC
+%token<str> KEY_STATIC
 %token<str> KEY_CLASS
 
-%token<str> KEY_CONST
-%token<str> KEY_NULL
+/* %token<str> KEY_CONST */
+/* %token<str> KEY_NULL */
 
 
+%token<chr> ASSIGN_OP           // Assignment operators except '='
+%token<str> INCREMENT           // ++
+%token<str> DECREMENT           // --
+%token<str> LOG_OR              // ||
+%token<str> LOG_AND             // &&
+%token<str> EQUAL               // ==
+%token<str> NOT_EQUAL           // ==
+%token<str> GTR_EQUAL           // <=
+%token<str> LESS_EQUAL          // >=
+%token<str> LEFT_SHIFT          // <<
+%token<str> RIGHT_SHIFT         // >>
+%token<str> SIGN_SHIFT          // >>>
+/* %token<str> DOUBLE_COLON        // :: */
+/* %token<str> TRIPLE_DOT          // ... */
 
-
-%right UNR_OP
+/* %right UNR_OP
 %right ASSIGN_OP
 %right '='
 %left BIN_OP
 %left '?'
 %left ':'
 %left INC_DEC
-%right KEY_ELSE
+%right KEY_ELSE */
 
 %%
+START: ClassDeclaration
+;
 
+BODY:   BODY STMNT
+|       STMNT
+;
+
+BLCK:   '{' BODY '}'
+|       '{' '}'
+;
+
+STMNT_without_sub:  BLCK 
+|                   Expr ';'
+|                   DEF_VAR ';'
+|                   KEY_RETURN Expr ';'
+|                   KEY_CONTINUE ';'
+|                   KEY_BREAK ';'
+|                   KEY_YIELD Expr ';'
+|                   Assert_stmnt
+|                   ';'
+;
+
+Assert_stmnt:   KEY_ASSERT Expr ';'
+|               KEY_ASSERT Expr ':' Expr ';'
 
 STMNT:  STMNT_without_sub
 |       IF_THEN
@@ -87,9 +139,10 @@ FOR_INIT:   DEF_VAR
 |           STMNT_EXPR_list
 |           %empty
 ;
+
 STMNT_EXPR_list:    STMNT_EXPR_list ',' STMNT_EXPR
 |                   STMNT_EXPR
-
+;
 
 IF_THEN:    KEY_IF '(' Expr ')' STMNT;
 IF_THEN_ELSE:   KEY_IF '(' Expr ')' STMNT_noshortif KEY_ELSE STMNT;
@@ -97,18 +150,6 @@ IF_THEN_ELSE_noshortif: KEY_IF '(' Expr ')' STMNT_noshortif KEY_ELSE STMNT_nosho
 
 
 
-BODY:   BODY STMNT
-|       STMNT
-;
-
-BLCK:   '{' BODY '}'
-|       '{' '}'
-
-STMNT_without_sub:  BLCK 
-|                   Expr ';'
-|                   DEF_VAR ';'
-|                   KEY_RETURN Expr ';'
-|                   ';'
 
 DEF_VAR: STAT DTYPE VAR_LIST
 
@@ -146,20 +187,142 @@ CONT1D: CONT1D ',' Expr
 |       Expr
 ;
 
-STMNT_EXPR: ID ASSIGN_OP Expr
-|           ID '=' Expr
-|           ID INC_DEC
-|           INC_DEC ID  
-|           ID '(' ARG_LIST ')'
-
-Expr:   Expr BIN_OP Expr
-|       '(' Expr ')'
-|       UNR_OP Expr
-|       Expr '?' Expr ':' Expr
-|       STMNT_EXPR
-|       LIT
-|       ID
+STMNT_EXPR: Assignment
+|           PreIncrementExpression
+|           PreDecrementExpression
+|           PostDecrementExpression
+|           PostIncrementExpression
+|           Meth_invoc
 ;
+
+Meth_invoc: ID '(' ARG_LIST ')'
+;
+
+Expr: AssignmentExpression
+;
+
+AssignmentExpression: ConditionalExpression
+|                     Assignment
+;
+
+Assignment: LeftHandSide AssignmentOperator Expr
+;
+
+AssignmentOperator: ASSIGN_OP
+|                  '='
+;
+
+ExpressionName:  AmbiguousName '.' ID
+;
+AmbiguousName:  ID
+|               AmbiguousName '.' ID
+;
+
+LeftHandSide:   ExpressionName
+|               VAR
+;
+
+ConditionalExpression:  ConditionalOrExpression
+|                       ConditionalOrExpression '?' Expr ':' ConditionalExpression
+;
+
+ConditionalOrExpression:    ConditionalAndExpression
+|                           ConditionalOrExpression LOG_OR ConditionalAndExpression
+;
+
+ConditionalAndExpression:   InclusiveOrExpression
+|                           ConditionalAndExpression LOG_AND InclusiveOrExpression
+;
+
+InclusiveOrExpression:      ExclusiveOrExpression
+|                           InclusiveOrExpression '|' ExclusiveOrExpression
+;
+
+ExclusiveOrExpression:      AndExpression
+|                           ExclusiveOrExpression '^' AndExpression
+;
+
+AndExpression:              EqualityExpression
+|                           AndExpression '&' EqualityExpression
+;
+
+EqualityExpression:         RelationalExpression
+|                           EqualityExpression EQUAL RelationalExpression
+|                           EqualityExpression NOT_EQUAL RelationalExpression
+;
+
+RelationalExpression:       ShiftExpression
+|                           RelationalExpression '<' ShiftExpression
+|                           RelationalExpression '>' ShiftExpression
+|                           RelationalExpression GTR_EQUAL ShiftExpression
+|                           RelationalExpression LESS_EQUAL ShiftExpression
+;
+
+ShiftExpression:            AdditiveExpression
+|                           ShiftExpression LEFT_SHIFT AdditiveExpression
+|                           ShiftExpression RIGHT_SHIFT AdditiveExpression
+|                           ShiftExpression SIGN_SHIFT AdditiveExpression
+;
+
+AdditiveExpression:         MultiplicativeExpression
+|                           AdditiveExpression '+' MultiplicativeExpression
+|                           AdditiveExpression '-' MultiplicativeExpression
+;
+
+MultiplicativeExpression:   UnaryExpression
+|                           MultiplicativeExpression '*' UnaryExpression
+|                           MultiplicativeExpression '/' UnaryExpression
+|                           MultiplicativeExpression '%' UnaryExpression
+;
+
+UnaryExpression:            PreIncrementExpression
+|                           PreDecrementExpression
+|                           '+' UnaryExpression
+|                           '-' UnaryExpression
+|                           UnaryExpressionNotPlusMinus
+;
+
+PreIncrementExpression:     INCREMENT UnaryExpression
+;
+
+PreDecrementExpression:     DECREMENT UnaryExpression
+;
+
+UnaryExpressionNotPlusMinus:    PostfixExpression
+|                               '~' UnaryExpression
+|                               '!' UnaryExpression
+;
+
+PostfixExpression:              Primary
+|                               ExpressionName
+|                               PostIncrementExpression
+|                               PostDecrementExpression
+;
+
+Primary:    PrimaryNoNewArray
+|           VAR
+;
+
+PrimaryNoNewArray:  LIT
+|                   '(' Expr ')'
+|                   ArrayAccess
+|                   Meth_invoc
+;
+
+ArrayAccess:    ExpressionName '[' Expr ']'
+|               PrimaryNoNewArray '[' Expr ']'
+;
+
+PostIncrementExpression:        PostfixExpression INCREMENT
+;
+
+PostDecrementExpression:        PostfixExpression DECREMENT
+;
+
+
+
+
+
 
 EMP_EXPR:   Expr | %empty
 
@@ -194,6 +357,51 @@ DTYPE:  KEY_INT
 ;
 
 
+
+ClassDeclaration: STAT MOD KEY_CLASS ID Class_body
+|                 STAT KEY_CLASS ID Class_body
+;
+
+Class_body: '{' Class_body_dec_list '}'
+|               '{' '}'
+;
+
+Class_body_dec_list :   Class_body_dec_list Class_body_dec
+|                       Class_body_dec
+;
+Class_body_dec:     STAT MOD DTYPE VAR_LIST 
+|                   MethodDeclaration
+|                   ClassDeclaration
+|                   STAT BLCK
+;
+
+MethodDeclaration: STAT MOD Meth_Head Meth_Body
+|                   STAT Meth_Head Meth_Body
+;
+
+Meth_Body:   BLCK
+|           ';'
+;
+
+Meth_Head: DTYPE Meth_decl
+|           KEY_VOID Meth_decl
+;
+
+Meth_decl: ID '(' Param_list ')'
+;
+
+Param_list: Param_list ',' Param
+|           Param
+;
+
+Param:  DTYPE VAR
+;
+
+
+MOD :   KEY_PRIVATE
+|       KEY_PUBLIC
+;
+
 %%
 /* CONST:  KEY_CONST
 |       %empty
@@ -204,9 +412,6 @@ FTYPE:  KEY_VOID
 |       DTYPE
 ;
 
-MOD :   KEY_PRIVATE
-|       KEY_PUBLIC
-;
 
 IN_LIST:    IN_LIST ',' D 
 |           D
@@ -230,3 +435,28 @@ CLASSBODY:  CLASSBODY FUNC
 ;
 
 CLASS:  MOD STAT KEY_CLASS ID '{' CLASSBODY '}'; */
+
+/* Expr:   Expr BIN_OP Expr
+|       '(' Expr ')'
+|       UNR_OP Expr
+|       Expr '?' Expr ':' Expr
+|       STMNT_EXPR
+|       LIT
+|       ID
+; */
+
+
+int main(int argc, char** argv) {
+
+    FILE *myfile = fopen("test.java", "r");
+    if (!myfile) {
+        cout <<"ERROR: "  << "Could not open file: "<< argv[1] << endl;
+        return -1;
+    }
+    yyin = myfile;
+    
+    do {
+        yyparse();
+    } while (!feof(yyin));
+  
+}
