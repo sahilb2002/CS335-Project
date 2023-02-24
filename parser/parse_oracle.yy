@@ -72,6 +72,10 @@
 %token<str> KEY_BREAK
 %token<str> KEY_CONTINUE
 
+%left '+' '-' '*' '/' '%' 
+%left LEFT_SHIFT RIGHT_SHIFT SIGN_SHIFT
+%nonassoc '<' '>' GTR_EQUAL LESS_EQUAL
+
 
 
 
@@ -86,6 +90,8 @@
 
 %%
 START: ClassDeclaration;
+
+
 
 IntegralType:   KEY_INT
 |               KEY_BYTE
@@ -107,36 +113,32 @@ PrimitiveType:  NumericType
 |               KEY_BOOL
 
 
-ReferenceType:  ClassOrInterfaceType
+ReferenceType:  ClassType
 |               ArrayType
 |               TypeVariable
 ;
 
-ClassOrInterfaceType:   ClassType
-|                       InterfaceType
-;
+
 
 ClassType:  TypeIdentifier 
-|           ClassOrInterfaceType'.' TypeIdentifier 
-;
-
-
-InterfaceType:  ClassType
+|           ClassType'.' TypeIdentifier 
 ;
 
 TypeVariable:  TypeIdentifier
 ;
 
 ArrayType:      PrimitiveType Dims
-|               ClassOrInterfaceType Dims
+|               ClassType Dims
 |               TypeVariable Dims
 ;
 
 Dims:            %empty
-|                   '[' ']'
-|                   '[' ']' '[' ']'
-|                   '[' ']' '[' ']' '[' ']'
+|               Dim Dim
+|               Dim Dim Dim
+|               Dim
 ;
+
+Dim:            '[' ']'
 
 TypeParameter: TypeIdentifier
 ;
@@ -228,18 +230,15 @@ MethodModifier: KEY_PUBLIC
 ;
 
 MethodHeader:   Result MethodDeclarator Throws_b
-|               Result MethodDeclarator
 ;
 
 Result:         UnannType
 |               KEY_VOID
 ;
 
-MethodDeclarator:   Identifier '('ReceiverParameter_b FormalParameterList_b ')' Dims_b
+MethodDeclarator:   Identifier '('ReceiverParameter_b FormalParameterList_b ')' Dims
 ;
 
-Dims_b :        %empty
-|               Dims
 
 ReceiverParameter_b:    ReceiverParameter ','
 |                       %empty
@@ -476,12 +475,12 @@ ReturnStatement:    KEY_RETURN Expression ';'
 ;
 
 ArrayInitializer:   '{' VariableInitializerList_s comma_s '}'
-VariableInitializerList_s: VariableInitializerList | %empty
+VariableInitializerList_s:  VariableInitializer 
+|                           VariableInitializerList_s ',' VariableInitializer
+|                           %empty
 comma_s :                   ',' | %empty
 ;
-VariableInitializerList:    VariableInitializerList ',' VariableInitializer
-|                           VariableInitializer
-;
+
 
 TypeName:   TypeIdentifier
 ExpressionName: Identifier
@@ -546,7 +545,6 @@ ClassBody_s:       %empty
 
 FieldAccess:       Primary '.' Identifier
 |                  KEY_SUPER '.' Identifier
-|                  TypeName '.' KEY_SUPER '.' Identifier
 ;
 
 ArrayAccess:       ExpressionName Expression_s
@@ -558,7 +556,6 @@ MethodInvocation:   MethodName '(' ArgumentList_s ')'
 |                   ExpressionName '.' Identifier '(' ArgumentList_s ')'
 |                   Primary '.' Identifier '(' ArgumentList_s ')'
 |                   KEY_SUPER '.' Identifier '(' ArgumentList_s ')'
-|                   TypeName '.' KEY_SUPER '.' Identifier '(' ArgumentList_s ')'
 ;
 
 MethodReference:    ExpressionName DOUBLE_COLON Identifier
@@ -571,18 +568,13 @@ MethodReference:    ExpressionName DOUBLE_COLON Identifier
 ;
 
 ArrayCreationExpression:    KEY_NEW PrimitiveType DimExprs Dims
-|                           KEY_NEW ClassOrInterfaceType DimExprs Dims
 |                           KEY_NEW PrimitiveType Dims ArrayInitializer
-|                           KEY_NEW ClassOrInterfaceType Dims ArrayInitializer
 ;
 
-DimExprs:   DimExpr DimExprs_b
+DimExprs:   DimExprs DimExpr
+|           DimExpr
 ;
 
-DimExprs_b:     %empty
-|               DimExpr
-|               DimExprs_b DimExpr
-;
 
 DimExpr:    Expression_s
 ;
@@ -659,20 +651,20 @@ ShiftExpression:            AdditiveExpression
 |                           ShiftExpression SIGN_SHIFT AdditiveExpression
 ;
 
-AdditiveExpression:         MultiplicativeExpression
-|                           AdditiveExpression '+' MultiplicativeExpression
-|                           AdditiveExpression '-' MultiplicativeExpression
+AdditiveExpression:         AdditiveExpression '+' MultiplicativeExpression 
+|                           AdditiveExpression '-' MultiplicativeExpression 
+|                           MultiplicativeExpression
 ;
 
-MultiplicativeExpression:   UnaryExpression
-|                           MultiplicativeExpression '*' UnaryExpression
-|                           MultiplicativeExpression '/' UnaryExpression
-|                           MultiplicativeExpression '%' UnaryExpression
+MultiplicativeExpression:   MultiplicativeExpression '*' UnaryExpression 
+|                           MultiplicativeExpression '/' UnaryExpression 
+|                           MultiplicativeExpression '%' UnaryExpression 
+|                           UnaryExpression
 ;
 
 UnaryExpression:            PreIncrementExpression
 |                           PreDecrementExpression
-|                           '+' UnaryExpression
+|                           '+' UnaryExpression 
 |                           '-' UnaryExpression
 |                           UnaryExpressionNotPlusMinus
 ;
