@@ -55,6 +55,8 @@
 %token<str> KEY_RETURN
 %token<str> KEY_ASSERT
 %token<str> KEY_YIELD
+%token<str> KEY_SUPER
+%token<str> KEY_IMPORT
 
 %token<str> KEY_PRIVATE
 %token<str> KEY_PUBLIC
@@ -90,8 +92,25 @@
 %right KEY_ELSE */
 
 %%
-START: ClassDeclaration
+/* START: ClassDeclaration; */
+START: ImportDecl_list ClassDeclaration_list
+|       ClassDeclaration_list
 ;
+
+ClassDeclaration_list:  ClassDeclaration_list ClassDeclaration
+|                       ClassDeclaration
+;
+
+ImportDecl_list:    ImportDecl_list ImportDecl
+|                   ImportDecl
+;
+
+ImportDecl:     KEY_IMPORT STAT Imp_list ';'
+|               KEY_IMPORT STAT Imp_list '.' '*' ';' 
+;
+
+Imp_list:   Imp_list '.' ID
+|           ID
 
 BODY:   BODY STMNT
 |       STMNT
@@ -104,7 +123,7 @@ BLCK:   '{' BODY '}'
 STMNT_without_sub:  BLCK 
 |                   Expr ';'
 |                   DEF_VAR ';'
-|                   KEY_RETURN Expr ';'
+|                   KEY_RETURN EMP_EXPR ';'
 |                   KEY_CONTINUE ';'
 |                   KEY_BREAK ';'
 |                   KEY_YIELD Expr ';'
@@ -161,15 +180,15 @@ VAR_LIST:   VAR_LIST ',' VAR
 ;
 
 VARA:   ID '=' Expr
-|       ID '[' Expr ']' '=' L1D
-|       ID '[' Expr ']' '[' Expr ']' '=' L2D
-|       ID '[' Expr ']' '[' Expr ']' '[' Expr ']' '=' L3D
+|       ID '[' EMP_EXPR ']' '=' L1D
+|       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' L2D
+|       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' L3D
 ;
 
 VAR:    ID
-|       ID '[' Expr ']'
-|       ID '[' Expr ']' '[' Expr ']'
-|       ID '[' Expr ']' '[' Expr ']' '[' Expr ']'
+|       ID '[' EMP_EXPR ']'
+|       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']'
+|       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '[' EMP_EXPR ']'
 ;
 
 L3D:    '{' CONT3D '}' ;
@@ -195,7 +214,7 @@ STMNT_EXPR: Assignment
 |           Meth_invoc
 ;
 
-Meth_invoc: ID '(' ARG_LIST ')'
+Meth_invoc: ExpressionName '(' ARG_LIST ')'
 ;
 
 Expr: AssignmentExpression
@@ -213,13 +232,16 @@ AssignmentOperator: ASSIGN_OP
 ;
 
 ExpressionName:  AmbiguousName '.' ID
+|                ID
 ;
 AmbiguousName:  ID
 |               AmbiguousName '.' ID
 ;
 
 LeftHandSide:   ExpressionName
-|               VAR
+|               FieldAccess
+|               ArrayAccess
+/* |               VAR */
 ;
 
 ConditionalExpression:  ConditionalOrExpression
@@ -299,14 +321,20 @@ PostfixExpression:              Primary
 |                               PostDecrementExpression
 ;
 
+FieldAccess:    Primary '.' ID
+|               KEY_SUPER '.' ID
+;
+
+
 Primary:    PrimaryNoNewArray
-|           VAR
+/* |           VAR */
 ;
 
 PrimaryNoNewArray:  LIT
 |                   '(' Expr ')'
 |                   ArrayAccess
 |                   Meth_invoc
+|                   FieldAccess
 ;
 
 ArrayAccess:    ExpressionName '[' Expr ']'
@@ -357,9 +385,7 @@ DTYPE:  KEY_INT
 ;
 
 
-
-ClassDeclaration: STAT MOD KEY_CLASS ID Class_body
-|                 STAT KEY_CLASS ID Class_body
+ClassDeclaration: MOD_EMPTY_LIST KEY_CLASS ID Class_body 
 ;
 
 Class_body: '{' Class_body_dec_list '}'
@@ -369,25 +395,28 @@ Class_body: '{' Class_body_dec_list '}'
 Class_body_dec_list :   Class_body_dec_list Class_body_dec
 |                       Class_body_dec
 ;
-Class_body_dec:     STAT MOD DTYPE VAR_LIST 
+Class_body_dec:     Class_DEF_VAR
 |                   MethodDeclaration
 |                   ClassDeclaration
 |                   STAT BLCK
+|                   ConstructorDeclaration
 ;
 
-MethodDeclaration: STAT MOD Meth_Head Meth_Body
-|                   STAT Meth_Head Meth_Body
+Class_DEF_VAR:  MOD_EMPTY_LIST DTYPE VAR_LIST ';'
+
+MethodDeclaration: MOD_EMPTY_LIST Meth_Head Meth_Body
 ;
 
 Meth_Body:   BLCK
 |           ';'
 ;
 
-Meth_Head: DTYPE Meth_decl
+Meth_Head:  DTYPE Meth_decl
 |           KEY_VOID Meth_decl
 ;
 
-Meth_decl: ID '(' Param_list ')'
+Meth_decl:  ID '(' Param_list ')'
+|           ID '(' ')'
 ;
 
 Param_list: Param_list ',' Param
@@ -397,9 +426,21 @@ Param_list: Param_list ',' Param
 Param:  DTYPE VAR
 ;
 
+MOD_EMPTY_LIST: MOD_LIST
+|               %empty
+;
+
+MOD_LIST:   MOD_LIST MOD
+|           MOD
+;
 
 MOD :   KEY_PRIVATE
 |       KEY_PUBLIC
+|       KEY_STATIC
+;
+
+ConstructorDeclaration: MOD_EMPTY_LIST ID '(' Param_list ')' BLCK
+|                       MOD_EMPTY_LIST ID '(' ')' BLCK
 ;
 
 %%
