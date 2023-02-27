@@ -44,6 +44,7 @@
 %token<str> KEY_CHAR
 %token<str> KEY_STRING
 %token<str> KEY_VOID
+%token<str> KEY_NEW
 
 %token<str> KEY_FOR
 %token<str> KEY_WHILE
@@ -111,6 +112,7 @@ ImportDecl:     KEY_IMPORT STAT Imp_list ';'
 
 Imp_list:   Imp_list '.' ID
 |           ID
+;
 
 BODY:   BODY STMNT
 |       STMNT
@@ -133,6 +135,7 @@ STMNT_without_sub:  BLCK
 
 Assert_stmnt:   KEY_ASSERT Expr ';'
 |               KEY_ASSERT Expr ':' Expr ';'
+;
 
 STMNT:  STMNT_without_sub
 |       IF_THEN
@@ -140,19 +143,25 @@ STMNT:  STMNT_without_sub
 |       WHILE_STMNT
 |       BASIC_FOR
 ;
+
 STMNT_noshortif:    STMNT_without_sub
 |                   IF_THEN_ELSE_noshortif
 |                   WHILE_STMNT_noshortif
 |                   BASIC_FOR_noshortif
 ;
 
-WHILE_STMNT: KEY_WHILE '(' Expr ')' STMNT;
+WHILE_STMNT: KEY_WHILE '(' Expr ')' STMNT
+;
 WHILE_STMNT_noshortif: KEY_WHILE '(' Expr ')' STMNT_noshortif
-
+;
 BASIC_FOR:  KEY_FOR '(' FOR_INIT ';' EMP_EXPR ';' FOR_UPDATE ')' STMNT
+;
 BASIC_FOR_noshortif:    KEY_FOR '(' FOR_INIT ';' EMP_EXPR ';' FOR_UPDATE ')' STMNT_noshortif
+;
 
-FOR_UPDATE: STMNT_EXPR_list | %empty;
+FOR_UPDATE: STMNT_EXPR_list 
+| %empty
+;
 
 FOR_INIT:   DEF_VAR
 |           STMNT_EXPR_list
@@ -163,15 +172,16 @@ STMNT_EXPR_list:    STMNT_EXPR_list ',' STMNT_EXPR
 |                   STMNT_EXPR
 ;
 
-IF_THEN:    KEY_IF '(' Expr ')' STMNT;
-IF_THEN_ELSE:   KEY_IF '(' Expr ')' STMNT_noshortif KEY_ELSE STMNT;
-IF_THEN_ELSE_noshortif: KEY_IF '(' Expr ')' STMNT_noshortif KEY_ELSE STMNT_noshortif;
-
-
+IF_THEN:    KEY_IF '(' Expr ')' STMNT
+;
+IF_THEN_ELSE:   KEY_IF '(' Expr ')' STMNT_noshortif KEY_ELSE STMNT
+;
+IF_THEN_ELSE_noshortif: KEY_IF '(' Expr ')' STMNT_noshortif KEY_ELSE STMNT_noshortif
+;
 
 
 DEF_VAR: STAT DTYPE VAR_LIST
-
+;
 
 VAR_LIST:   VAR_LIST ',' VAR
 |           VAR_LIST ',' VARA
@@ -191,17 +201,20 @@ VAR:    ID
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '[' EMP_EXPR ']'
 ;
 
-L3D:    '{' CONT3D '}' ;
+L3D:    '{' CONT3D '}' 
+;
 CONT3D: CONT3D ',' L2D
 |       L2D
 ;
 
-L2D:    '{' CONT2D '}' ;
+L2D:    '{' CONT2D '}' 
+;
 CONT2D: CONT2D ',' L1D
 |       L1D
 ;
 
-L1D: '{' CONT1D '}' ;
+L1D: '{' CONT1D '}' 
+;
 CONT1D: CONT1D ',' Expr
 |       Expr
 ;
@@ -327,6 +340,7 @@ FieldAccess:    Primary '.' ID
 
 
 Primary:    PrimaryNoNewArray
+|           ArrayCreationExpr
 /* |           VAR */
 ;
 
@@ -335,6 +349,16 @@ PrimaryNoNewArray:  LIT
 |                   ArrayAccess
 |                   Meth_invoc
 |                   FieldAccess
+|                   KEY_NEW ID '(' ARG_LIST ')' Class_body
+|                   KEY_NEW ID '(' ARG_LIST ')'
+;
+
+ArrayCreationExpr:  KEY_NEW DTYPE DimExpr
+|                   KEY_NEW ID DimExpr
+;
+
+DimExpr:    '[' Expr ']'
+|           DimExpr '[' Expr ']'
 ;
 
 ArrayAccess:    ExpressionName '[' Expr ']'
@@ -349,12 +373,11 @@ PostDecrementExpression:        PostfixExpression DECREMENT
 
 
 
-
-
-
 EMP_EXPR:   Expr | %empty
+;
 
-ARG_LIST: ARG_LISTp | %empty;
+ARG_LIST: ARG_LISTp | %empty
+;
 
 ARG_LISTp:   ARG_LISTp ',' Expr
 |           Expr
@@ -395,6 +418,7 @@ Class_body: '{' Class_body_dec_list '}'
 Class_body_dec_list :   Class_body_dec_list Class_body_dec
 |                       Class_body_dec
 ;
+
 Class_body_dec:     Class_DEF_VAR
 |                   MethodDeclaration
 |                   ClassDeclaration
@@ -403,7 +427,7 @@ Class_body_dec:     Class_DEF_VAR
 ;
 
 Class_DEF_VAR:  MOD_EMPTY_LIST DTYPE VAR_LIST ';'
-
+;
 MethodDeclaration: MOD_EMPTY_LIST Meth_Head Meth_Body
 ;
 
@@ -411,7 +435,16 @@ Meth_Body:   BLCK
 |           ';'
 ;
 
-Meth_Head:  DTYPE Meth_decl
+DIMS_list: DIMS_list '[' ']'
+|     '[' ']'
+;
+
+DIMS: DIMS_list
+;
+
+Meth_Head:  DTYPE DIMS Meth_decl
+|           KEY_VOID DIMS Meth_decl
+|           DTYPE Meth_decl
 |           KEY_VOID Meth_decl
 ;
 
@@ -444,47 +477,6 @@ ConstructorDeclaration: MOD_EMPTY_LIST ID '(' Param_list ')' BLCK
 ;
 
 %%
-/* CONST:  KEY_CONST
-|       %empty
-;
-NULL:   KEY_NULL;
-NEW:    KEY_NEW;
-FTYPE:  KEY_VOID
-|       DTYPE
-;
-
-
-IN_LIST:    IN_LIST ',' D 
-|           D
-|           %empty
-;
-
-D:      DTYPE VAR;
-
-FUNC:  MOD STAT FTYPE ID '(' IN_LIST ')' BLCKFUNC;
-
-BLCKFUNC:   '{' BODY '}'
-|           '{' '}'
-|           ';'
-;
-
-CLASSBODY:  CLASSBODY FUNC
-|           CLASSBODY DEF_VAR
-|           FUNC
-|           DEF_VAR
-|           %empty
-;
-
-CLASS:  MOD STAT KEY_CLASS ID '{' CLASSBODY '}'; */
-
-/* Expr:   Expr BIN_OP Expr
-|       '(' Expr ')'
-|       UNR_OP Expr
-|       Expr '?' Expr ':' Expr
-|       STMNT_EXPR
-|       LIT
-|       ID
-; */
 
 
 int main(int argc, char** argv) {

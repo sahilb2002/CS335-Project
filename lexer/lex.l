@@ -35,13 +35,11 @@ ESCAPE_SEQUENCE "\\b"|"\\s"|"\\t"|"\\n"|"\\f"|"\\r"|"\\\""|"\\\'"|"\\\\"
 
 /* "const" return KEY_CONST; */
 /* "System" return KEY_SYSTEM; */
-/* "new" return KEY_NEW; */
 /* "out" return KEY_OUT; */
 /* "NULL" return KEY_NULL; */
 /* "var" return KEY_VAR; */
 /* "System.out.println" return KEY_PRINT; */
 /*"this" return KEY_THIS;*/
-/*"import" return KEY_IMPORT;*/
 /*"package" return KEY_PACKAGE;*/
 /*"extends" return KEY_EXTENDS;*/
 /*"implements" return KEY_IMPLEMENTS;*/
@@ -72,6 +70,7 @@ ESCAPE_SEQUENCE "\\b"|"\\s"|"\\t"|"\\n"|"\\f"|"\\r"|"\\\""|"\\\'"|"\\\\"
 "continue" return KEY_CONTINUE;
 "super" return KEY_SUPER;
 "import" return KEY_IMPORT;
+"new" return KEY_NEW;
 
 
 
