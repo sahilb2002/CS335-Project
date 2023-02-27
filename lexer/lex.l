@@ -28,7 +28,7 @@ ASSIGNOPERATOR "+="|"-="|"*="|"/="|"&="|"|="|"^="|"%="|"<<="|">>="|">>>="
 
 /*String*/
 BOOLEAN true|false
-ESCAPE_SEQUENCE \b|\s|\t|\n|\f|\r|\"|\'|\\
+ESCAPE_SEQUENCE "\\b"|"\\s"|"\\t"|"\\n"|"\\f"|"\\r"|"\\\""|"\\\'"|"\\\\"
 
 %x COMMENT
 %x TEXTBLOCK
@@ -40,6 +40,12 @@ ESCAPE_SEQUENCE \b|\s|\t|\n|\f|\r|\"|\'|\\
 /* "NULL" return KEY_NULL; */
 /* "var" return KEY_VAR; */
 /* "System.out.println" return KEY_PRINT; */
+/*"this" return KEY_THIS;*/
+/*"import" return KEY_IMPORT;*/
+/*"package" return KEY_PACKAGE;*/
+/*"extends" return KEY_EXTENDS;*/
+/*"implements" return KEY_IMPLEMENTS;*/
+/*"interface" return KEY_INTERFACE;*/
 
 %%
 [ \t\n\f\r] ;
@@ -64,6 +70,11 @@ ESCAPE_SEQUENCE \b|\s|\t|\n|\f|\r|\"|\'|\\
 "class" return KEY_CLASS;
 "break" return KEY_BREAK;
 "continue" return KEY_CONTINUE;
+"super" return KEY_SUPER;
+"import" return KEY_IMPORT;
+
+
+
 
 {BOOLEAN} return BOOL;
 
