@@ -4,6 +4,7 @@
     #include<vector>
     #include<fstream>
     #include<string>
+    #include "../parser/AST.h"
     #include "../parser/parse.tab.h"
 
     using namespace std;
