@@ -60,7 +60,7 @@ ESCAPE_SEQUENCE "\\b"|"\\s"|"\\t"|"\\n"|"\\f"|"\\r"|"\\\""|"\\\'"|"\\\\"
 "int" return KEY_INT;
 "long" return KEY_LONG;
 "char" return KEY_CHAR;
-"string" return KEY_STRING;
+"String" return KEY_STRING;
 "float" return KEY_FLOAT;
 "private" return KEY_PRIVATE;
 "public" return KEY_PUBLIC;
@@ -72,6 +72,10 @@ ESCAPE_SEQUENCE "\\b"|"\\s"|"\\t"|"\\n"|"\\f"|"\\r"|"\\\""|"\\\'"|"\\\\"
 "super" return KEY_SUPER;
 "import" return KEY_IMPORT;
 "new" return KEY_NEW;
+"switch" return KEY_SWITCH;
+"case" return KEY_CASE;
+"default" return KEY_DEFAULT;
+"throw" return KEY_THROW;
 
 
 
@@ -115,16 +119,16 @@ ESCAPE_SEQUENCE "\\b"|"\\s"|"\\t"|"\\n"|"\\f"|"\\r"|"\\\""|"\\\'"|"\\\\"
     return STRING;
 }
 
-[a-zA-Z_][a-zA-Z_0-9]* return ID;
+[a-zA-Z_][a-zA-Z_0-9]* {yylval.str = new std::string(yytext); return ID;};
 
-{INTEGER} return INT;
-{INTEGER}[lL] return LONG;
-{HEX_NUM} return INT;
-{HEX_NUM}[lL] return LONG;
-{BINARY_NUM} return INT;
-{BINARY_NUM}[lL] return LONG;
-{OCTAL_NUM} return INT;
-{OCTAL_NUM}[lL] return LONG;
+{INTEGER} {yylval.str = new std::string(yytext); return INT;}
+{INTEGER}[lL] {yylval.str = new std::string(yytext); return LONG;}
+{HEX_NUM} {yylval.str = new std::string(yytext); return INT;}
+{HEX_NUM}[lL] {yylval.str = new std::string(yytext); return LONG;}
+{BINARY_NUM} {yylval.str = new std::string(yytext); return INT;}
+{BINARY_NUM}[lL] {yylval.str = new std::string(yytext); return LONG;}
+{OCTAL_NUM} {yylval.str = new std::string(yytext); return INT;}
+{OCTAL_NUM}[lL] {yylval.str = new std::string(yytext); return LONG;}
 
 
 {DIGIT}*("."{DIGIT}+)?([eE][+-]?{DIGIT}+)?[fF]|{DIGIT}+("."{DIGIT}*)?([eE][+-]?{DIGIT}+)?[fF] return FLOAT;
@@ -173,7 +177,8 @@ ESCAPE_SEQUENCE "\\b"|"\\s"|"\\t"|"\\n"|"\\f"|"\\r"|"\\\""|"\\\'"|"\\\\"
 "<<"    return LEFT_SHIFT;
 ">>"    return RIGHT_SHIFT;
 ">>>"   return SIGN_SHIFT;
-{ASSIGNOPERATOR} return ASSIGN_OP;
+"->"    return ARROW;
+{ASSIGNOPERATOR} {yylval.str = new std::string(yytext); return ASSIGN_OP;}
 
 
 %%

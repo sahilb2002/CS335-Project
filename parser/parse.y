@@ -21,7 +21,7 @@
 %}
 
 %union{
-    char *str;
+    string *str;
     treeNode* ptr;
 
 }
@@ -59,6 +59,10 @@
 %token<str> KEY_YIELD
 %token<str> KEY_SUPER
 %token<str> KEY_IMPORT
+%token<str> KEY_THROW
+%token<str> KEY_CASE
+%token<str> KEY_DEFAULT
+%token<str> KEY_SWITCH
 
 %token<str> KEY_PRIVATE
 %token<str> KEY_PUBLIC
@@ -81,10 +85,12 @@
 %token<str> LEFT_SHIFT          // <<
 %token<str> RIGHT_SHIFT         // >>
 %token<str> SIGN_SHIFT          // >>>
+%token<str> ARROW               // ->
 /* %token<str> DOUBLE_COLON        // :: */
 /* %token<str> TRIPLE_DOT          // ... */
-%type<ptr> START ImportDecl_list ClassDeclaration_list ClassDeclaration AmbiguousName ImportDecl PrimaryNoNewArray BODY BLCK STMNT_without_sub  Assert_stmnt STMNT STMNT_noshortif WHILE_STMNT WHILE_STMNT_noshortif BASIC_FOR BASIC_FOR_noshortif FOR_UPDATE FOR_INIT STMNT_EXPR_list IF_THEN IF_THEN_ELSE IF_THEN_ELSE_noshortif DEF_VAR VAR_LIST VARA VAR STMNT_EXPR Meth_invoc Expr AssignmentExpression Assignment LeftHandSide ConditionalAndExpression ConditionalOrExpression ConditionalExpression InclusiveOrExpression ExclusiveOrExpression AndExpression EqualityExpression RelationalExpression ShiftExpression AdditiveExpression MultiplicativeExpression UnaryExpression PreIncrementExpression PreDecrementExpression UnaryExpressionNotPlusMinus PostfixExpression FieldAccess Primary ArrayCreationExpr DimExpr ArrayAccess PostDecrementExpression PostIncrementExpression EMP_EXPR ARG_LIST ARG_LISTp LIT STAT DTYPE Class_body Class_body_dec_list Class_body_dec Class_DEF_VAR MethodDeclaration Meth_Body DIMS_list Meth_Head DIMS Meth_decl Param_list Param MOD_EMPTY_LIST MOD_LIST MOD ConstructorDeclaration ExpressionName 
-
+%type<str> Imp_list AmbiguousName ExpressionName AssignmentOperator
+%type<ptr> START ImportDecl_list ClassDeclaration_list CastExpression ClassDeclaration ImportDecl PrimaryNoNewArray BODY BLCK STMNT_without_sub  Assert_stmnt STMNT STMNT_noshortif WHILE_STMNT WHILE_STMNT_noshortif BASIC_FOR BASIC_FOR_noshortif FOR_UPDATE FOR_INIT STMNT_EXPR_list IF_THEN IF_THEN_ELSE IF_THEN_ELSE_noshortif DEF_VAR VAR_LIST VARA VAR STMNT_EXPR Meth_invoc Expr AssignmentExpression Assignment LeftHandSide ConditionalAndExpression ConditionalOrExpression ConditionalExpression InclusiveOrExpression ExclusiveOrExpression AndExpression EqualityExpression RelationalExpression ShiftExpression AdditiveExpression MultiplicativeExpression UnaryExpression PreIncrementExpression PreDecrementExpression UnaryExpressionNotPlusMinus PostfixExpression FieldAccess Primary ArrayCreationExpr DimExpr ArrayAccess PostDecrementExpression PostIncrementExpression EMP_EXPR ARG_LIST ARG_LISTp LIT STAT DTYPE Class_body Class_body_dec_list Class_body_dec Class_DEF_VAR MethodDeclaration Meth_Body DIMS_list Meth_Head DIMS Meth_decl Param_list Param MOD_EMPTY_LIST MOD_LIST MOD ConstructorDeclaration 
+%type<ptr> SwitchBlock SwitchBlockStatementGroup SwitchBlockStatementGroup_list SwitchBlockStatementGroup_list_empty SwitchLabel SwitchLabel_list SwitchRule SwitchRule_list SwitchStatement ThrowStatement CaseConstant_list 
 
 %%
 START: ImportDecl_list ClassDeclaration_list{
@@ -116,23 +122,27 @@ ClassDeclaration_list:  ClassDeclaration_list ClassDeclaration{
 ImportDecl_list:    ImportDecl_list ImportDecl{
     vector<data> v;
     insertAttr(v, $1, "ImportList", 1);
-    insertAttr(v, makeleaf("Imported package"), "", 1);
+    insertAttr(v, $2, "", 1);
     $$ = makenode("ImportList", v);
 }
 |                   ImportDecl{
     vector<data> v;
-    insertAttr(v, makeleaf("IMported package"), "", 1);
+    insertAttr(v, $1, "", 1);
     $$ = makenode("ImportList", v);
 }
 ;
 
-ImportDecl:     KEY_IMPORT STAT Imp_list ';' {$$ = NULL;}
-|               KEY_IMPORT STAT Imp_list '.' '*' ';' {$$ = NULL;}
+ImportDecl:     KEY_IMPORT STAT Imp_list ';' {$$ = makeleaf(*$3);}
+|               KEY_IMPORT STAT Imp_list '.' '*' ';' {$$ = makeleaf(*$3);}
 
 ;
 
-Imp_list:   Imp_list '.' ID 
-|           ID
+Imp_list:   Imp_list '.' ID {
+    *$$ = *$1 + "." + *$3;
+}
+|           ID{
+    *$$ = *$1;
+}
 ;
 
 BODY:   BODY STMNT{
@@ -142,9 +152,7 @@ BODY:   BODY STMNT{
     $$ = makenode("Body", v);
 }
 |       STMNT{
-    vector<data> v;
-    insertAttr(v, $1, "", 1);
-    $$ = makenode("Body", v);
+    $$ = $1;
 }
 ;
 
@@ -164,19 +172,13 @@ BLCK:   '{' BODY '}'{
 ;
 
 STMNT_without_sub:  BLCK{
-    vector<data> v;
-    insertAttr(v, $1, "", 1);
-    $$ = makenode("STMNT_without_sub", v);
+    $$ = $1;
 } 
 |                   Expr ';'{
-    vector<data> v;
-    insertAttr(v, $1, "", 1);
-    $$ = makenode("STMNT_without_sub", v);
+    $$ = $1;
 }
 |                   DEF_VAR ';'{
-    vector<data> v;
-    insertAttr(v, $1, "", 1);
-    $$ = makenode("STMNT_without_sub", v);
+    $$ = $1;
 }
 |                   KEY_RETURN EMP_EXPR ';'{
     vector<data> v;
@@ -185,14 +187,10 @@ STMNT_without_sub:  BLCK{
     $$ = makenode("STMNT_without_sub", v);
 }
 |                   KEY_CONTINUE ';'{
-    vector<data> v;
-    insertAttr(v, makeleaf("continue"), "", 1);
-    $$ = makenode("STMNT_without_sub", v);
+    $$ = makeleaf("continue");
 }
 |                   KEY_BREAK ';'{
-    vector<data> v;
-    insertAttr(v, makeleaf("break"), "", 1);
-    $$ = makenode("STMNT_without_sub", v);
+    $$ = makeleaf("break");
 }
 |                   KEY_YIELD Expr ';'{
     vector<data> v;
@@ -201,12 +199,151 @@ STMNT_without_sub:  BLCK{
     $$ = makenode("STMNT_without_sub", v);
 }
 |                   Assert_stmnt{
-    vector<data> v;
-    insertAttr(v, $1, "", 1);
-    $$ = makenode("STMNT_without_sub", v);
+    $$ = $1;
+}
+|                   ThrowStatement{
+    $$ = $1;
 }
 |                   ';' {$$ = NULL;}
+|                   SwitchStatement{
+    $$ = $1;
+}
 ;
+
+SwitchStatement:    KEY_SWITCH '(' Expr ')' SwitchBlock{
+    vector<data> v;
+    insertAttr(v, makeleaf("switch"), "", 1);
+    insertAttr(v, NULL, "(", 0);
+    insertAttr(v, $3, "", 1);
+    insertAttr(v, NULL, ")", 0);
+    insertAttr(v, $5, "", 1);
+    $$ = makenode("SwitchStatement", v);
+}
+;
+SwitchBlock:    '{' SwitchRule_list '}' {
+    vector<data> v;
+    insertAttr(v, NULL, "{", 0);
+    insertAttr(v, $2, "", 1);
+    insertAttr(v, NULL, "}", 0);
+    $$ = makenode("SwitchBlock", v);
+}
+|
+    '{' SwitchBlockStatementGroup_list_empty '}' {
+    vector<data> v;
+    insertAttr(v, NULL, "{", 0);
+    insertAttr(v, $2, "", 1);
+    insertAttr(v, NULL, "}", 0);
+    $$ = makenode("SwitchBlock", v);
+}
+|
+    '{' SwitchBlockStatementGroup_list_empty SwitchLabel_list '}' {
+    vector<data> v;
+    insertAttr(v, NULL, "{", 0);
+    insertAttr(v, $2, "", 1);
+    insertAttr(v, $3, "", 1);
+    insertAttr(v, NULL, "}", 0);
+    $$ = makenode("SwitchBlock", v);
+}
+;
+SwitchBlockStatementGroup_list_empty:  SwitchBlockStatementGroup_list{
+    $$ = $1;
+}
+|%empty {
+    $$ = NULL;
+}
+
+SwitchBlockStatementGroup_list: SwitchBlockStatementGroup_list SwitchBlockStatementGroup{
+    vector<data> v;
+    insertAttr(v, $1, "", 1);
+    insertAttr(v, $2, "", 1);
+    $$ = makenode("SwitchBlockStatementGroupList", v);
+}
+|                    SwitchBlockStatementGroup{
+    $$ = $1;
+}
+;
+SwitchRule_list:    SwitchRule_list SwitchRule{
+    vector<data> v;
+    insertAttr(v, $1, "", 1);
+    insertAttr(v, $2, "", 1);
+    $$ = makenode("SwitchRuleList", v);
+}
+|                   SwitchRule{
+    $$ = $1;
+}
+;
+
+SwitchBlockStatementGroup:  SwitchLabel_list BODY{
+    vector<data> v;
+    insertAttr(v, $1, "", 1);
+    insertAttr(v, $2, "", 1);
+    $$ = makenode("SwitchBlockStatementGroup", v);
+}
+
+SwitchLabel_list:  SwitchLabel_list SwitchLabel ':' {
+    vector<data> v;
+    insertAttr(v, $1, "", 1);
+    insertAttr(v, $2, "", 1);
+    $$ = makenode("SwitchLabelList", v);
+}
+|                SwitchLabel ':' {
+    $$ = $1;
+}
+;
+
+SwitchRule: SwitchLabel ARROW Expr ';' {
+    vector<data> v;
+    insertAttr(v, $1, "", 1);
+    insertAttr(v, makeleaf("->"), "", 1);
+    insertAttr(v, $3, "", 1);
+    $$ = makenode("SwitchRule", v);
+}
+|           SwitchLabel ARROW BLCK {
+    vector<data> v;
+    insertAttr(v, $1, "", 1);
+    insertAttr(v, makeleaf("->"), "", 1);
+    insertAttr(v, $3, "", 1);
+    $$ = makenode("SwitchRule", v);
+}
+|           SwitchLabel ARROW ThrowStatement {
+    vector<data> v;
+    insertAttr(v, $1, "", 1);
+    insertAttr(v, makeleaf("->"), "", 1);
+    insertAttr(v, $3, "", 1);
+    $$ = makenode("SwitchRule", v);
+}
+;
+
+SwitchLabel: KEY_CASE CaseConstant_list {
+    vector<data> v;
+    insertAttr(v, makeleaf("case"), "", 1);
+    insertAttr(v, $2, "", 1);
+    $$ = makenode("SwitchLabel", v);
+}
+| KEY_DEFAULT {
+    $$ = makeleaf("default");
+}
+;
+
+CaseConstant_list: CaseConstant_list ',' ConditionalExpression {
+    vector<data> v;
+    insertAttr(v, $1, "", 1);
+    insertAttr(v, NULL, ",", 0);
+    insertAttr(v, $3, "", 1);
+    $$ = makenode("CaseConstantList", v);
+}
+|
+ConditionalExpression {
+    $$ = $1;
+}
+;
+
+ThrowStatement: KEY_THROW Expr ';' {
+    vector<data> v;
+    insertAttr(v, makeleaf("throw"), "", 1);
+    insertAttr(v, $2, "", 1);
+    $$ = makenode("ThrowStatement", v);
+}
 
 Assert_stmnt:   KEY_ASSERT Expr ';' {
     vector<data> v;
@@ -224,58 +361,42 @@ Assert_stmnt:   KEY_ASSERT Expr ';' {
 ;
 
 STMNT:  STMNT_without_sub{
-    vector<data> v;
-    insertAttr(v, $1, "", 1);
-    $$ = makenode("STMNT", v);
+    $$ = $1;
 }
 |       IF_THEN{
-    vector<data> v;
-    insertAttr(v, $1, "", 1);
-    $$ = makenode("STMNT", v);
+    $$  =$1;
 }
 |       IF_THEN_ELSE{
-    vector<data> v;
-    insertAttr(v, $1, "", 1);
-    $$ = makenode("STMNT", v);
+    $$ = $1;
 }
 |       WHILE_STMNT{
-    vector<data> v;
-    insertAttr(v, $1, "", 1);
-    $$ = makenode("STMNT", v);
+    $$ = $1;
 }
 |       BASIC_FOR{
-    vector<data> v;
-    insertAttr(v, $1, "", 1);
-    $$ = makenode("STMNT", v);
+    $$ = $1;
 }
 ;
 
 STMNT_noshortif:    STMNT_without_sub{
-    vector<data> v;
-    insertAttr(v, $1, "", 1);
-    $$ = makenode("STMNT_noshortif", v);
+    $$ = $1;
 }
 |                   IF_THEN_ELSE_noshortif{
-    vector<data> v;
-    insertAttr(v, $1, "", 1);
-    $$ = makenode("STMNT_noshortif", v);
+    $$ = $1;
 }
 |                   WHILE_STMNT_noshortif{
-    vector<data> v;
-    insertAttr(v, $1, "", 1);
-    $$ = makenode("STMNT_noshortif", v);
+    $$ = $1;
 }
 |                   BASIC_FOR_noshortif{
-    vector<data> v;
-    insertAttr(v, $1, "", 1);
-    $$ = makenode("STMNT_noshortif", v);
+    $$ = $1;
 }
 ;
 
 WHILE_STMNT: KEY_WHILE '(' Expr ')' STMNT{
     vector<data> v;
     insertAttr(v, makeleaf("while"), "", 1);
+    insertAttr(v,NULL, "(",0);
     insertAttr(v, $3, "", 1);
+    insertAttr(v,NULL, ")",0);
     insertAttr(v, $5, "", 1);
     $$ = makenode("WHILE_STMNT", v);
 }
@@ -283,17 +404,23 @@ WHILE_STMNT: KEY_WHILE '(' Expr ')' STMNT{
 WHILE_STMNT_noshortif: KEY_WHILE '(' Expr ')' STMNT_noshortif{
     vector<data> v;
     insertAttr(v, makeleaf("while"), "", 1);
+    insertAttr(v,NULL, "(",0);
     insertAttr(v, $3, "", 1);
+    insertAttr(v,NULL, ")",0);
     insertAttr(v, $5, "", 1);
     $$ = makenode("WHILE_STMNT_noshortif", v);
 }
 ;
 BASIC_FOR:  KEY_FOR '(' FOR_INIT ';' EMP_EXPR ';' FOR_UPDATE ')' STMNT{
     vector<data> v;
-    insertAttr(v, makeleaf("FOR"), "", 1);
+    insertAttr(v, makeleaf("for"), "", 1);
+    insertAttr(v,NULL, "(",0);
     insertAttr(v, $3, "", 1);
+    insertAttr(v, NULL, ";", 0);
     insertAttr(v, $5, "", 1);
+    insertAttr(v, NULL, ";", 0);
     insertAttr(v, $7, "", 1);
+    insertAttr(v,NULL, ")",0);
     insertAttr(v, $9, "", 1);
     $$ = makenode("BASIC_FOR", v);
 }
@@ -301,9 +428,11 @@ BASIC_FOR:  KEY_FOR '(' FOR_INIT ';' EMP_EXPR ';' FOR_UPDATE ')' STMNT{
 BASIC_FOR_noshortif:    KEY_FOR '(' FOR_INIT ';' EMP_EXPR ';' FOR_UPDATE ')' STMNT_noshortif{
     vector<data> v;
     insertAttr(v, makeleaf("FOR"), "", 1);
+    insertAttr(v,NULL, "(",0);
     insertAttr(v, $3, "", 1);
     insertAttr(v, $5, "", 1);
     insertAttr(v, $7, "", 1);
+    insertAttr(v,NULL, ")",0);
     insertAttr(v, $9, "", 1);
     $$ = makenode("BASIC_FOR_noshortif", v);
 }
@@ -412,23 +541,23 @@ VAR_LIST:   VAR_LIST ',' VAR{
 
 VARA:   ID '=' Expr{
     vector<data> v;
-    insertAttr(v, makeleaf("ID"), "", 1);
+    insertAttr(v, makeleaf(*$1), "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("=", v);
 }
-|       ID '[' EMP_EXPR ']' '=' L1D{
+|       ID '[' EMP_EXPR ']' '=' Array_init_1D{
     vector<data> v;
     insertAttr(v, makeleaf("ID[EMP_EXPR]"), "", 1);
     insertAttr(v, makeleaf("1D Array Initializer"), "", 1);
     $$ = makenode("=", v);
 }
-|       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' L2D{
+|       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' Array_init_2D{
     vector<data> v;
     insertAttr(v, makeleaf("ID[EMP_EXPR][EMP_EXPR]"), "", 1);
     insertAttr(v, makeleaf("2D Array Initializer"), "", 1);
     $$ = makenode("=", v);
 }
-|       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' L3D{
+|       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' Array_init_3D{
     vector<data> v;
     insertAttr(v, makeleaf("ID[EMP_EXPR][EMP_EXPR][EMP_EXPR]"), "", 1);
     insertAttr(v, makeleaf("3D Array Initializer"), "", 1);
@@ -436,8 +565,18 @@ VARA:   ID '=' Expr{
 }
 ;
 
+Array_init_1D: L1D
+|               KEY_NEW DTYPE '[' Expr ']'
+;
+Array_init_2D: L2D
+|               KEY_NEW DTYPE '[' Expr ']' '[' Expr ']'
+;
+Array_init_3D: L3D
+|               KEY_NEW DTYPE '[' Expr ']' '[' Expr ']' '[' Expr ']'
+;
+
 VAR:    ID{
-    $$ = makeleaf("ID");
+    $$ = makeleaf(*$1);
 }
 |       ID '[' EMP_EXPR ']'{
     $$ = makeleaf("ID[EMP_EXPR]");
@@ -480,7 +619,7 @@ STMNT_EXPR: Assignment{
 
 Meth_invoc: ExpressionName '(' ARG_LIST ')'{
     vector<data> v;
-    insertAttr(v, makeleaf("ExpressionName"), "", 1);
+    insertAttr(v, makeleaf(*$1), "", 1);
     insertAttr(v, NULL, "(", 0);
     insertAttr(v, $3, "", 1);
     insertAttr(v, NULL, ")", 0);
@@ -488,7 +627,9 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
 }
 ;
 
-Expr: AssignmentExpression{$$ = $1;}
+Expr: AssignmentExpression{
+    $$ = $1;
+}
 ;
 
 AssignmentExpression: ConditionalExpression{$$ = $1;}
@@ -499,22 +640,34 @@ Assignment: LeftHandSide AssignmentOperator Expr{
     vector<data> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
-    $$ = makenode("AssignmentOperator", v);
+    $$ = makenode(*$2, v);
 }
 ;
 
-AssignmentOperator: ASSIGN_OP
-|                  '='
+AssignmentOperator: ASSIGN_OP{
+    *$$ = *$1;
+}
+|                  '='{
+    *$$ = "=";
+}
 ;
 
-ExpressionName:  AmbiguousName '.' ID
-|                ID {$$ = NULL;}
+ExpressionName:  AmbiguousName '.' ID{
+    *$$ = *$1 + "." + *$3;
+}
+|                ID {
+    *$$ = *$1;
+}
 ;
-AmbiguousName:  ID  {$$ = NULL;}
-|               AmbiguousName '.' ID
+AmbiguousName:  ID  {
+    *$$ = *$1;
+}
+|               AmbiguousName '.' ID{
+    *$$ = *$1 + "." + *$3;
+}
 ;
 
-LeftHandSide:   ExpressionName{$$ = $1;}
+LeftHandSide:   ExpressionName{$$ = makeleaf(*$1);}
 |               FieldAccess{$$ = $1;}
 |               ArrayAccess{$$ = $1;}
 /* |               VAR */
@@ -714,13 +867,25 @@ UnaryExpressionNotPlusMinus:    PostfixExpression{
     insertAttr(v, $2, "", 1);
     $$ = makenode("!", v);
 }
+|   CastExpression {
+    $$ = $1;
+}
 ;
+
+CastExpression:             '(' DTYPE ')' UnaryExpression{
+    vector<data> v;
+    insertAttr(v, NULL, "(", 0);
+    insertAttr(v, $2, "", 1);
+    insertAttr(v, NULL, ")", 0);
+    insertAttr(v, $4, "", 1);
+    $$ = makenode("CastExpression", v);
+}
 
 PostfixExpression:              Primary{
     $$ = $1;
 }
 |                               ExpressionName{
-    $$ = $1;
+    $$ = makeleaf(*$1);
 }
 |                               PostIncrementExpression{
     $$ = $1;
@@ -734,14 +899,14 @@ FieldAccess:    Primary '.' ID{
     vector<data> v;
     insertAttr(v, $1, "", 1);
     //insertAttr(v, makeleaf("."), "", 1);
-    insertAttr(v, makeleaf("ID"), "", 1);
+    insertAttr(v, makeleaf(*$3), "", 1);
     $$ = makenode("FieldAccess", v);
 }
 |               KEY_SUPER '.' ID{
     vector<data> v;
     insertAttr(v, makeleaf("super"), "", 1);
     //insertAttr(v, makeleaf("."), "", 1);
-    insertAttr(v, makeleaf("ID"), "", 1);
+    insertAttr(v, makeleaf(*$3), "", 1);
     $$ = makenode("FieldAccess", v);
 }
 ;
@@ -757,15 +922,13 @@ Primary:    PrimaryNoNewArray{
 ;
 
 PrimaryNoNewArray:  LIT{
-    vector<data> v;
-    insertAttr(v, $1, "", 1);
-    $$ = makenode("PrimaryNoNewArray", v);
+    $$ = $1;
 }
 |                   '(' Expr ')'{
     vector<data> v;
-    insertAttr(v, makeleaf("("), "", 1);
+    insertAttr(v, NULL, "(", 0);
     insertAttr(v, $2, "", 1);
-    insertAttr(v, makeleaf(")"), "", 1);
+    insertAttr(v, NULL, ")", 0);
     $$ = makenode("PrimaryNoNewArray", v);
 }
 |                   ArrayAccess{$$ = $1;}
@@ -774,20 +937,20 @@ PrimaryNoNewArray:  LIT{
 |                   KEY_NEW ID '(' ARG_LIST ')' Class_body{
     vector<data> v;
     insertAttr(v, makeleaf("new"), "", 1);
-    insertAttr(v, makeleaf("ID"), "", 1);
-    insertAttr(v, makeleaf("("), "", 0);
+    insertAttr(v, makeleaf(*$2), "", 1);
+    insertAttr(v, NULL, "(", 0);
     insertAttr(v, $4, "", 1);
-    insertAttr(v, makeleaf(")"), "", 0);
+    insertAttr(v, NULL, ")", 0);
     insertAttr(v, $6, "", 1);
     $$ = makenode("PrimaryNoNewArray", v);
 }
 |                   KEY_NEW ID '(' ARG_LIST ')'{
     vector<data> v;
     insertAttr(v, makeleaf("new"), "", 1);
-    insertAttr(v, makeleaf("ID"), "", 1);
-    insertAttr(v, makeleaf("("), "", 0);
+    insertAttr(v, makeleaf(*$2), "", 1);
+    insertAttr(v, NULL, "(", 0);
     insertAttr(v, $4, "", 1);
-    insertAttr(v, makeleaf(")"), "", 0);
+    insertAttr(v, NULL, ")", 0);
     $$ = makenode("PrimaryNoNewArray", v);
 }
 ;
@@ -802,7 +965,7 @@ ArrayCreationExpr:  KEY_NEW DTYPE DimExpr{
 |                   KEY_NEW ID DimExpr{
     vector<data> v;
     insertAttr(v, makeleaf("new"), "", 1);
-    insertAttr(v, makeleaf("ID"), "", 1);
+    insertAttr(v, makeleaf(*$2), "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("ArrayCreationExpr", v);
 }
@@ -827,7 +990,7 @@ DimExpr:    '[' Expr ']'{
 
 ArrayAccess:    ExpressionName '[' Expr ']'{
     vector<data> v;
-    insertAttr(v, $1, "", 1);
+    insertAttr(v, makeleaf(*$1), "", 1);
     insertAttr(v, makeleaf("["), "", 1);
     insertAttr(v, $3, "", 1);
     insertAttr(v, makeleaf("]"), "", 1);
@@ -883,24 +1046,24 @@ ARG_LISTp:   ARG_LISTp ',' Expr{
 ;
 
 LIT:    INT{
-    $$ = makeleaf("int");
+    $$ = makeleaf(*$1);
 }
 |       FLOAT{
-    $$ = makeleaf("float");
+    $$ = makeleaf(*$1);
 }
 |       CHAR{
-    $$ = makeleaf("char");
+    $$ = makeleaf(*$1);
 }
 |       STRING{
-    $$ = makeleaf("string");
+    $$ = makeleaf(*$1);
 }
 |       BOOL{
-    $$ = makeleaf("bool");}
+    $$ = makeleaf(*$1);}
 |       LONG{
-    $$ = makeleaf("long");
+    $$ = makeleaf(*$1);
 }
 |       DOUBLE{
-    $$ = makeleaf("double");
+    $$ = makeleaf(*$1);
 }
 ;
 
@@ -942,7 +1105,7 @@ ClassDeclaration: MOD_EMPTY_LIST KEY_CLASS ID Class_body {
     vector<data> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, makeleaf("class"), "", 1);
-    insertAttr(v, makeleaf("ID"), "", 1);
+    insertAttr(v, makeleaf(*$3), "", 1);
     insertAttr(v, $4, "", 1);
     $$ = makenode("ClassDeclaration", v);
 }
@@ -1055,17 +1218,16 @@ Meth_Head:  DTYPE DIMS Meth_decl{
 
 Meth_decl:  ID '(' Param_list ')'{
     vector<data> v;
-    insertAttr(v, makeleaf("ID"), "", 1);
-    insertAttr(v, makeleaf("("), "", 1);
+    insertAttr(v, makeleaf(*$1), "", 1);
+    insertAttr(v, NULL, "(", 0);
     insertAttr(v, $3, "", 1);
-    insertAttr(v, makeleaf(")"), "", 1);
+    insertAttr(v, NULL, ")", 0);
     $$ = makenode("Method Declaration", v);
 }
 |           ID '(' ')'{
     vector<data> v;
-    insertAttr(v, makeleaf("ID"), "", 1);
-    insertAttr(v, makeleaf("("), "", 1);
-    insertAttr(v, makeleaf(")"), "", 1);
+    insertAttr(v, makeleaf(*$1), "", 1);
+    insertAttr(v, NULL, "( )", 0);
     $$ = makenode("Method Declaration", v);
 }
 ;
@@ -1122,19 +1284,18 @@ MOD :   KEY_PRIVATE{
 ConstructorDeclaration : MOD_EMPTY_LIST ID '(' Param_list ')' BLCK{
     vector<data> v;
     insertAttr(v, $1, "", 1);
-    insertAttr(v, makeleaf("ID"), "", 1);
-    insertAttr(v, makeleaf("("), "", 1);
+    insertAttr(v, makeleaf(*$2), "", 1);
+    insertAttr(v, NULL, "(", 0);
     insertAttr(v, $4, "", 1);
-    insertAttr(v, makeleaf(")"), "", 1);
+    insertAttr(v, NULL, ")", 0);
     insertAttr(v, $6, "", 1);
     $$ = makenode("construtor", v);
 }
 |                       MOD_EMPTY_LIST ID '(' ')' BLCK{
     vector<data> v;
     insertAttr(v, $1, "", 1);
-    insertAttr(v, makeleaf("ID"), "", 1);
-    insertAttr(v, makeleaf("("), "", 1);
-    insertAttr(v, makeleaf(")"), "", 1);
+    insertAttr(v, makeleaf(*$2), "", 1);
+    insertAttr(v, NULL, "( )", 0);
     insertAttr(v, $5, "", 1);
     $$ = makenode("construtor", v);
 }
