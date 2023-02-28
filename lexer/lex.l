@@ -1,6 +1,5 @@
 %{
     #include<iostream>
-    #include<map>
     #include<vector>
     #include<fstream>
     #include<string>
@@ -173,7 +172,10 @@ ESCAPE_SEQUENCE "\\b"|"\\s"|"\\t"|"\\n"|"\\f"|"\\r"|"\\\""|"\\\'"|"\\\\"
 "->"    return ARROW;
 {ASSIGNOPERATOR} {yylval.str = new std::string(yytext); return ASSIGN_OP;}
 
-
+. {
+    cout<<"Invalid character in line: "<<yylineno<<endl;
+    exit(0);
+}
 %%
 
 int yywrap(){
