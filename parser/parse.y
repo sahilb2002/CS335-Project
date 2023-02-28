@@ -2,7 +2,8 @@
 
     #include<iostream>
     #include<fstream>
-    #include"AST.h"
+    #include "AST.h"
+    #include<cstring>
     using namespace std;
 
     
@@ -90,7 +91,7 @@
 
 %type<str> Imp_list AmbiguousName ExpressionName AssignmentOperator
 %type<ptr> START ImportDecl_list ClassDeclaration_list CastExpression ClassDeclaration ImportDecl PrimaryNoNewArray BODY BLCK STMNT_without_sub  Assert_stmnt STMNT STMNT_noshortif WHILE_STMNT WHILE_STMNT_noshortif BASIC_FOR BASIC_FOR_noshortif FOR_UPDATE FOR_INIT STMNT_EXPR_list IF_THEN IF_THEN_ELSE IF_THEN_ELSE_noshortif DEF_VAR VAR_LIST VARA VAR STMNT_EXPR Meth_invoc Expr AssignmentExpression Assignment LeftHandSide ConditionalAndExpression ConditionalOrExpression ConditionalExpression InclusiveOrExpression ExclusiveOrExpression AndExpression EqualityExpression RelationalExpression ShiftExpression AdditiveExpression MultiplicativeExpression UnaryExpression PreIncrementExpression PreDecrementExpression UnaryExpressionNotPlusMinus PostfixExpression FieldAccess Primary ArrayCreationExpr DimExpr ArrayAccess PostDecrementExpression PostIncrementExpression EMP_EXPR ARG_LIST ARG_LISTp LIT STAT DTYPE Class_body Class_body_dec_list Class_body_dec Class_DEF_VAR MethodDeclaration Meth_Body DIMS_list Meth_Head DIMS Meth_decl Param_list Param MOD_EMPTY_LIST MOD_LIST MOD ConstructorDeclaration 
-%type<ptr> SwitchBlock SwitchBlockStatementGroup SwitchBlockStatementGroup_list SwitchBlockStatementGroup_list_empty SwitchLabel SwitchLabel_list SwitchRule SwitchRule_list SwitchStatement ThrowStatement CaseConstant_list 
+%type<ptr> SwitchBlock SwitchBlockStatementGroup SwitchBlockStatementGroup_list SwitchLabel SwitchLabel_list SwitchRule SwitchRule_list SwitchStatement ThrowStatement CaseConstant_list 
 %type<ptr> CONT1D CONT2D CONT3D Array_init_1D Array_init_2D Array_init_3D L1D L2D L3D
 
 %%
@@ -240,15 +241,18 @@ SwitchBlock:    '{' SwitchRule_list '}' {
     $$ = makenode("SwitchBlock", v);
 }
 |
-    '{' SwitchBlockStatementGroup_list_empty '}' {
+    '{' SwitchBlockStatementGroup_list '}' {
     vector<data> v;
     insertAttr(v, NULL, "{", 0);
     insertAttr(v, $2, "", 1);
     insertAttr(v, NULL, "}", 0);
     $$ = makenode("SwitchBlock", v);
 }
+|   '{' '}' {
+    $$ = NULL;
+}
 |
-    '{' SwitchBlockStatementGroup_list_empty SwitchLabel_list '}' {
+    '{' SwitchBlockStatementGroup_list SwitchLabel_list '}' {
     vector<data> v;
     insertAttr(v, NULL, "{", 0);
     insertAttr(v, $2, "", 1);
@@ -256,13 +260,15 @@ SwitchBlock:    '{' SwitchRule_list '}' {
     insertAttr(v, NULL, "}", 0);
     $$ = makenode("SwitchBlock", v);
 }
+|
+    '{'SwitchLabel_list '}' {
+    vector<data> v;
+    insertAttr(v, NULL, "{", 0);
+    insertAttr(v, $2, "", 1);
+    insertAttr(v, NULL, "}", 0);
+    $$ = makenode("SwitchBlock", v);
+}
 ;
-SwitchBlockStatementGroup_list_empty:  SwitchBlockStatementGroup_list{
-    $$ = $1;
-}
-|%empty {
-    $$ = NULL;
-}
 
 SwitchBlockStatementGroup_list: SwitchBlockStatementGroup_list SwitchBlockStatementGroup{
     vector<data> v;
@@ -1453,14 +1459,72 @@ ConstructorDeclaration : MOD_EMPTY_LIST ID '(' Param_list ')' BLCK{
 
 
 int main(int argc, char** argv) {
+    argc--;
+    char* infile = NULL;
+    char* outfile = argv[0];
+    outfile = strcat(outfile, ".dot");
+    bool verbose = false;
+    while(argc){
+        /* if argv contains --input= take it as input file */
+        if(strncmp(argv[argc], "--input=", 8) == 0){
+            infile = argv[argc] + 8;
+        }
+        /* if argv contains --output= take it as output file */
+        else if(strncmp(argv[argc], "--output=", 9) == 0){
+            outfile = argv[argc] + 9;
+        }
+        /* if argv is --verbose */
+        else if(strcmp(argv[argc], "--verbose") == 0){
+            verbose = true;
+        }
+        /* if argv is --help print help message and exit.  */
+        else if(strcmp(argv[argc], "--help") == 0){
+            cout << "Usage: " << argv[0] << " --input=path/to/input.java [other options]" << endl;
+            cout << "Other options:" << endl;
+            /* cout << "  --input=FILE\t\tRead input from FILE" << endl; */
+            cout << "  --output=FILE\t\tWrite output to FILE" << endl;
+            cout << "  --verbose\t\tPrint verbose output" << endl;
+            cout << "  --help\t\tPrint this help message" << endl;
+            return 0;
+        }
+        /* else print error */
+        else {
+            cout << "Invalid format! use" << argv[0] <<" --help for more info."<<endl;
+            return -1; 
+        }
+        argc--;
+    }
+    if(!infile){
+        cout << "Input file not given! use" << argv[0] <<" --help for more info."<<endl;
+        return -1;
+    }
 
-    FILE *myfile = fopen("test.java", "r");
+    /* Open input file... */
+    if(verbose){
+        cout<<"Opening input file..."<<endl;
+
+    }
+    FILE *myfile = fopen(infile, "r");
     if (!myfile) {
-        cout <<"ERROR: "  << "Could not open file: "<< argv[1] << endl;
+        cout <<"ERROR: "  << "Could not open file: "<< infile << endl;
         return -1;
     }
     yyin = myfile;
-    dotfile = fopen("AST.dot", "w");
+
+    /* Open output file... */
+    if(verbose){
+        cout<<"Opening output file..."<<endl;
+    }
+    dotfile = fopen(outfile, "w");
+    if(!dotfile){
+        cout <<"ERROR: "  << "Could not open file: "<< outfile << endl;
+        return -1;
+    }
+
+    /* start parsing */
+    if(verbose){
+        cout<<"Started Parsing"<<endl;
+    }
     beginAST();
     do {
         yyparse();
