@@ -34,17 +34,7 @@ ESCAPE_SEQUENCE "\\b"|"\\s"|"\\t"|"\\n"|"\\f"|"\\r"|"\\\""|"\\\'"|"\\\\"
 %x COMMENT
 %x TEXTBLOCK
 
-/* "const" return KEY_CONST; */
-/* "System" return KEY_SYSTEM; */
-/* "out" return KEY_OUT; */
-/* "NULL" return KEY_NULL; */
-/* "var" return KEY_VAR; */
-/* "System.out.println" return KEY_PRINT; */
-/*"this" return KEY_THIS;*/
-/*"package" return KEY_PACKAGE;*/
-/*"extends" return KEY_EXTENDS;*/
-/*"implements" return KEY_IMPLEMENTS;*/
-/*"interface" return KEY_INTERFACE;*/
+
 
 %%
 [ \t\n\f\r] ;
@@ -66,6 +56,7 @@ ESCAPE_SEQUENCE "\\b"|"\\s"|"\\t"|"\\n"|"\\f"|"\\r"|"\\\""|"\\\'"|"\\\\"
 "public" return KEY_PUBLIC;
 "return" return KEY_RETURN;
 "static" return KEY_STATIC;
+"protected" return KEY_PROTECTED;
 "class" return KEY_CLASS;
 "break" return KEY_BREAK;
 "continue" return KEY_CONTINUE;
@@ -76,6 +67,7 @@ ESCAPE_SEQUENCE "\\b"|"\\s"|"\\t"|"\\n"|"\\f"|"\\r"|"\\\""|"\\\'"|"\\\\"
 "case" return KEY_CASE;
 "default" return KEY_DEFAULT;
 "throw" return KEY_THROW;
+"do" return KEY_DO;
 
 
 
@@ -116,6 +108,7 @@ ESCAPE_SEQUENCE "\\b"|"\\s"|"\\t"|"\\n"|"\\f"|"\\r"|"\\\""|"\\\'"|"\\\\"
 <TEXTBLOCK>\"\"\"  {
     // yymore();
     BEGIN(INITIAL);
+    yylval.str = new std::string(yytext); 
     return STRING;
 }
 
@@ -131,13 +124,13 @@ ESCAPE_SEQUENCE "\\b"|"\\s"|"\\t"|"\\n"|"\\f"|"\\r"|"\\\""|"\\\'"|"\\\\"
 {OCTAL_NUM}[lL] {yylval.str = new std::string(yytext); return LONG;}
 
 
-{DIGIT}*("."{DIGIT}+)?([eE][+-]?{DIGIT}+)?[fF]|{DIGIT}+("."{DIGIT}*)?([eE][+-]?{DIGIT}+)?[fF] return FLOAT;
-{DIGIT}*("."{DIGIT}+)?([eE][+-]?{DIGIT}+)?[Dd]?|{DIGIT}+("."{DIGIT}*)?([eE][+-]?{DIGIT}+)?[Dd]? return DOUBLE;
-{HEX_NUM}"."|{HEX_NUM}"."{HEX_NUM}[+-]?{HEX_NUM}[fF] return FLOAT;
-{HEX_NUM}"."|{HEX_NUM}"."{HEX_NUM}[+-]?{HEX_NUM}[Dd]? return DOUBLE;
+{DIGIT}*("."{DIGIT}+)?([eE][+-]?{DIGIT}+)?[fF]|{DIGIT}+("."{DIGIT}*)?([eE][+-]?{DIGIT}+)?[fF] {yylval.str = new std::string(yytext); return FLOAT;}
+{DIGIT}*("."{DIGIT}+)?([eE][+-]?{DIGIT}+)?[Dd]?|{DIGIT}+("."{DIGIT}*)?([eE][+-]?{DIGIT}+)?[Dd]? {yylval.str = new std::string(yytext); return DOUBLE;}
+{HEX_NUM}"."|{HEX_NUM}"."{HEX_NUM}[+-]?{HEX_NUM}[fF] {yylval.str = new std::string(yytext); return FLOAT;}
+{HEX_NUM}"."|{HEX_NUM}"."{HEX_NUM}[+-]?{HEX_NUM}[Dd]? {yylval.str = new std::string(yytext); return DOUBLE;}
 
-\'[^\'\\\n\r]\'|\'{ESCAPE_SEQUENCE}\' return CHAR;
-\"[^\"\\\n\r]*\"|\"{ESCAPE_SEQUENCE}*\" return STRING;
+\'[^\'\\\n\r]\'|\'{ESCAPE_SEQUENCE}\' {yylval.str = new std::string(yytext); return CHAR;}
+\"[^\"\\\n\r]*\"|\"{ESCAPE_SEQUENCE}*\" {yylval.str = new std::string(yytext); return STRING;}
 
 
 "=" return '=';

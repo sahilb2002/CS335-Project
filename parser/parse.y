@@ -63,14 +63,14 @@
 %token<str> KEY_CASE
 %token<str> KEY_DEFAULT
 %token<str> KEY_SWITCH
+%token<str> KEY_DO
 
 %token<str> KEY_PRIVATE
 %token<str> KEY_PUBLIC
 %token<str> KEY_STATIC
+%token<str> KEY_PROTECTED
 %token<str> KEY_CLASS
 
-/* %token<str> KEY_CONST */
-/* %token<str> KEY_NULL */
 
 
 %token<str> ASSIGN_OP           // Assignment operators except '='
@@ -86,14 +86,15 @@
 %token<str> RIGHT_SHIFT         // >>
 %token<str> SIGN_SHIFT          // >>>
 %token<str> ARROW               // ->
-/* %token<str> DOUBLE_COLON        // :: */
-/* %token<str> TRIPLE_DOT          // ... */
+
+
 %type<str> Imp_list AmbiguousName ExpressionName AssignmentOperator
 %type<ptr> START ImportDecl_list ClassDeclaration_list CastExpression ClassDeclaration ImportDecl PrimaryNoNewArray BODY BLCK STMNT_without_sub  Assert_stmnt STMNT STMNT_noshortif WHILE_STMNT WHILE_STMNT_noshortif BASIC_FOR BASIC_FOR_noshortif FOR_UPDATE FOR_INIT STMNT_EXPR_list IF_THEN IF_THEN_ELSE IF_THEN_ELSE_noshortif DEF_VAR VAR_LIST VARA VAR STMNT_EXPR Meth_invoc Expr AssignmentExpression Assignment LeftHandSide ConditionalAndExpression ConditionalOrExpression ConditionalExpression InclusiveOrExpression ExclusiveOrExpression AndExpression EqualityExpression RelationalExpression ShiftExpression AdditiveExpression MultiplicativeExpression UnaryExpression PreIncrementExpression PreDecrementExpression UnaryExpressionNotPlusMinus PostfixExpression FieldAccess Primary ArrayCreationExpr DimExpr ArrayAccess PostDecrementExpression PostIncrementExpression EMP_EXPR ARG_LIST ARG_LISTp LIT STAT DTYPE Class_body Class_body_dec_list Class_body_dec Class_DEF_VAR MethodDeclaration Meth_Body DIMS_list Meth_Head DIMS Meth_decl Param_list Param MOD_EMPTY_LIST MOD_LIST MOD ConstructorDeclaration 
 %type<ptr> SwitchBlock SwitchBlockStatementGroup SwitchBlockStatementGroup_list SwitchBlockStatementGroup_list_empty SwitchLabel SwitchLabel_list SwitchRule SwitchRule_list SwitchStatement ThrowStatement CaseConstant_list 
+%type<ptr> CONT1D CONT2D CONT3D Array_init_1D Array_init_2D Array_init_3D L1D L2D L3D
 
 %%
-START: ImportDecl_list ClassDeclaration_list{
+START:  ImportDecl_list ClassDeclaration_list {
     vector<data> v;
     insertAttr(v, $1, "ImportList", 1);
     insertAttr(v, $2, "ClassList", 1);
@@ -204,10 +205,21 @@ STMNT_without_sub:  BLCK{
 |                   ThrowStatement{
     $$ = $1;
 }
-|                   ';' {$$ = NULL;}
 |                   SwitchStatement{
     $$ = $1;
 }
+|                   KEY_DO STMNT KEY_WHILE '(' Expr ')' ';'{
+    vector<data> v;
+    insertAttr(v, makeleaf("do"), "", 1);
+    insertAttr(v, $2, "", 1);
+    insertAttr(v, makeleaf("while"), "", 1);
+    insertAttr(v, NULL, "(", 0);
+    insertAttr(v, $5, "", 1);
+    insertAttr(v, NULL, ")", 0);
+    $$ = makenode("STMNT_without_sub", v);
+}
+|                   ';' {$$ = NULL;}
+
 ;
 
 SwitchStatement:    KEY_SWITCH '(' Expr ')' SwitchBlock{
@@ -528,14 +540,10 @@ VAR_LIST:   VAR_LIST ',' VAR{
     $$ = makenode("VAR_LIST", v);
 }
 |           VAR{
-    vector<data> v;
-    insertAttr(v, $1, "", 1);
-    $$ = makenode("VAR_LIST", v);
+    $$ = $1;
 }
 |           VARA{
-    vector<data> v;
-    insertAttr(v, $1, "", 1);
-    $$ = makenode("VAR_LIST", v);
+    $$ = $1;
 }
 ;
 
@@ -547,32 +555,98 @@ VARA:   ID '=' Expr{
 }
 |       ID '[' EMP_EXPR ']' '=' Array_init_1D{
     vector<data> v;
-    insertAttr(v, makeleaf("ID[EMP_EXPR]"), "", 1);
-    insertAttr(v, makeleaf("1D Array Initializer"), "", 1);
+    insertAttr(v, makeleaf(*$1), "", 1);
+    insertAttr(v, NULL, "[", 0);
+    insertAttr(v, $3, "", 1);
+    insertAttr(v, NULL, "]", 0);
+    treeNode* temp = makenode("LeftHandSide", v);
+    v.clear();
+    insertAttr(v, temp, "", 1);
+    insertAttr(v, $6, "", 1);
     $$ = makenode("=", v);
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' Array_init_2D{
     vector<data> v;
-    insertAttr(v, makeleaf("ID[EMP_EXPR][EMP_EXPR]"), "", 1);
-    insertAttr(v, makeleaf("2D Array Initializer"), "", 1);
+    insertAttr(v, makeleaf(*$1), "", 1);
+    insertAttr(v, NULL, "[", 0);
+    insertAttr(v, $3, "", 1);
+    insertAttr(v, NULL, "]", 0);
+    insertAttr(v, NULL, "[", 0);
+    insertAttr(v, $6, "", 1);
+    insertAttr(v, NULL, "]", 0);
+    treeNode* temp = makenode("LeftHandSide", v);
+    v.clear();
+    insertAttr(v, temp, "", 1);
+    insertAttr(v, $9, "", 1);
     $$ = makenode("=", v);
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' Array_init_3D{
     vector<data> v;
-    insertAttr(v, makeleaf("ID[EMP_EXPR][EMP_EXPR][EMP_EXPR]"), "", 1);
-    insertAttr(v, makeleaf("3D Array Initializer"), "", 1);
+    insertAttr(v, makeleaf(*$1), "", 1);
+    insertAttr(v, NULL, "[", 0);
+    insertAttr(v, $3, "", 1);
+    insertAttr(v, NULL, "]", 0);
+    insertAttr(v, NULL, "[", 0);
+    insertAttr(v, $6, "", 1);
+    insertAttr(v, NULL, "]", 0);
+    insertAttr(v, NULL, "[", 0);
+    insertAttr(v, $9, "", 1);
+    insertAttr(v, NULL, "]", 0);
+    treeNode* temp = makenode("LeftHandSide", v);
+    v.clear();
+    insertAttr(v, temp, "", 1);
+    insertAttr(v, $12, "", 1);
     $$ = makenode("=", v);
 }
 ;
 
-Array_init_1D: L1D
-|               KEY_NEW DTYPE '[' Expr ']'
+Array_init_1D: L1D{
+    $$ = $1;
+}
+|               KEY_NEW DTYPE '[' Expr ']'{
+    vector<data> v;
+    insertAttr(v, makeleaf("new"), "", 1);
+    insertAttr(v, $2, "", 1);
+    insertAttr(v, NULL, "[", 0);
+    insertAttr(v, $4, "", 1);
+    insertAttr(v, NULL, "]", 0);
+    $$ = makenode("Array-1D", v);
+}
 ;
-Array_init_2D: L2D
-|               KEY_NEW DTYPE '[' Expr ']' '[' Expr ']'
+Array_init_2D: L2D{
+    $$ = $1;
+}
+|               KEY_NEW DTYPE '[' Expr ']' '[' Expr ']'{
+    vector<data> v;
+    insertAttr(v, makeleaf("new"), "", 1);
+    insertAttr(v, $2, "", 1);
+    insertAttr(v, NULL, "[", 0);
+    insertAttr(v, $4, "", 1);
+    insertAttr(v, NULL, "]", 0);
+    insertAttr(v, NULL, "[", 0);
+    insertAttr(v, $7, "", 1);
+    insertAttr(v, NULL, "]", 0);
+    $$ = makenode("Array-2D", v);
+}
 ;
-Array_init_3D: L3D
-|               KEY_NEW DTYPE '[' Expr ']' '[' Expr ']' '[' Expr ']'
+Array_init_3D: L3D{
+    $$ = $1;
+}
+|               KEY_NEW DTYPE '[' Expr ']' '[' Expr ']' '[' Expr ']'{
+    vector<data> v;
+    insertAttr(v, makeleaf("new"), "", 1);
+    insertAttr(v, $2, "", 1);
+    insertAttr(v, NULL, "[", 0);
+    insertAttr(v, $4, "", 1);
+    insertAttr(v, NULL, "]", 0);
+    insertAttr(v, NULL, "[", 0);
+    insertAttr(v, $7, "", 1);
+    insertAttr(v, NULL, "]", 0);
+    insertAttr(v, NULL, "[", 0);
+    insertAttr(v, $10, "", 1);
+    insertAttr(v, NULL, "]", 0);
+    $$ = makenode("Array-3D", v);
+}
 ;
 
 VAR:    ID{
@@ -589,22 +663,52 @@ VAR:    ID{
 }
 ;
 
-L3D:    '{' CONT3D '}'
+L3D:    '{' CONT3D '}'{
+    $$ = $2;
+}
 ;
-CONT3D: CONT3D ',' L2D
-|       L2D
+CONT3D: CONT3D ',' L2D{
+    vector<data> v;
+    insertAttr(v, $1, "", 1);
+    insertAttr(v, NULL, ",", 0);
+    insertAttr(v, $3, "", 1);
+    $$ = makenode("Array-3D", v);
+}
+|       L2D{
+    $$ = $1;
+}
 ;
 
-L2D:    '{' CONT2D '}'
+L2D:    '{' CONT2D '}'{
+    $$ = $2;
+}
 ;
-CONT2D: CONT2D ',' L1D
-|       L1D
+CONT2D: CONT2D ',' L1D{
+    vector<data> v;
+    insertAttr(v, $1, "", 1);
+    insertAttr(v, NULL, ",", 0);
+    insertAttr(v, $3, "", 1);
+    $$ = makenode("Array-2D", v);
+}
+|       L1D{
+    $$ = $1;
+}
 ;
 
-L1D: '{' CONT1D '}' 
+L1D: '{' CONT1D '}' {
+    $$ = $2;
+} 
 ;
-CONT1D: CONT1D ',' Expr
-|       Expr
+CONT1D: CONT1D ',' Expr{
+    vector<data> v;
+    insertAttr(v, $1, "", 1);
+    insertAttr(v, NULL, ",", 0);
+    insertAttr(v, $3, "", 1);
+    $$ = makenode("Array-1D", v);
+}
+|       Expr{
+    $$ = $1;
+}
 ;
 
 STMNT_EXPR: Assignment{
@@ -1249,7 +1353,9 @@ Param:  DTYPE VAR{
 }
 ;
 
-MOD_EMPTY_LIST: MOD_LIST{$$ = $1;}
+MOD_EMPTY_LIST: MOD_LIST{
+    $$ = $1;
+}
 |               %empty{
     $$ = NULL;
 }
@@ -1277,6 +1383,11 @@ MOD :   KEY_PRIVATE{
 |       KEY_STATIC{
     vector<data> v;
     insertAttr(v, makeleaf("static"), "", 1);
+    $$ = makenode("modifier", v);
+}
+|      KEY_PROTECTED{
+    vector<data> v;
+    insertAttr(v, makeleaf("protected"), "", 1);
     $$ = makenode("modifier", v);
 }
 ;
