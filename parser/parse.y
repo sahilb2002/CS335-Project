@@ -133,8 +133,8 @@ ImportDecl_list:    ImportDecl_list ImportDecl{
 }
 ;
 
-ImportDecl:     KEY_IMPORT STAT Imp_list ';' {$$ = makeleaf(*$3);}
-|               KEY_IMPORT STAT Imp_list '.' '*' ';' {$$ = makeleaf(*$3);}
+ImportDecl:     KEY_IMPORT STAT Imp_list ';' {$$ = makeleaf("ID(" + *$3 + ")");}
+|               KEY_IMPORT STAT Imp_list '.' '*' ';' {$$ = makeleaf("ID(" + *$3 + ")");}
 
 ;
 
@@ -549,13 +549,13 @@ VAR_LIST:   VAR_LIST ',' VAR{
 
 VARA:   ID '=' Expr{
     vector<data> v;
-    insertAttr(v, makeleaf(*$1), "", 1);
+    insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("=", v);
 }
 |       ID '[' EMP_EXPR ']' '=' Array_init_1D{
     vector<data> v;
-    insertAttr(v, makeleaf(*$1), "", 1);
+    insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, NULL, "[", 0);
     insertAttr(v, $3, "", 1);
     insertAttr(v, NULL, "]", 0);
@@ -567,7 +567,7 @@ VARA:   ID '=' Expr{
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' Array_init_2D{
     vector<data> v;
-    insertAttr(v, makeleaf(*$1), "", 1);
+    insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, NULL, "[", 0);
     insertAttr(v, $3, "", 1);
     insertAttr(v, NULL, "]", 0);
@@ -582,7 +582,7 @@ VARA:   ID '=' Expr{
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' Array_init_3D{
     vector<data> v;
-    insertAttr(v, makeleaf(*$1), "", 1);
+    insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, NULL, "[", 0);
     insertAttr(v, $3, "", 1);
     insertAttr(v, NULL, "]", 0);
@@ -650,16 +650,40 @@ Array_init_3D: L3D{
 ;
 
 VAR:    ID{
-    $$ = makeleaf(*$1);
+    $$ = makeleaf("ID(" + *$1 + ")");
 }
 |       ID '[' EMP_EXPR ']'{
-    $$ = makeleaf("ID[EMP_EXPR]");
+    vector<data> v;
+    insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
+    insertAttr(v, NULL, "[", 0);
+    insertAttr(v, $3, "", 1);
+    insertAttr(v, NULL, "]", 0);
+    $$ = makeleaf("1D Array");
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']'{
-    $$ = makeleaf("ID[EMP_EXPR][EMP_EXPR]");
+    vector<data> v;
+    insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
+    insertAttr(v, NULL, "[", 0);
+    insertAttr(v, $3, "", 1);
+    insertAttr(v, NULL, "]", 0);
+    insertAttr(v, NULL, "[", 0);
+    insertAttr(v, $6, "", 1);
+    insertAttr(v, NULL, "]", 0);
+    $$ = makeleaf("2D Array");
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '[' EMP_EXPR ']'{
-    $$ = makeleaf("ID[EMP_EXPR][EMP_EXPR][EMP_EXPR]");
+    vector<data> v;
+    insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
+    insertAttr(v, NULL, "[", 0);
+    insertAttr(v, $3, "", 1);
+    insertAttr(v, NULL, "]", 0);
+    insertAttr(v, NULL, "[", 0);
+    insertAttr(v, $6, "", 1);
+    insertAttr(v, NULL, "]", 0);
+    insertAttr(v, NULL, "[", 0);
+    insertAttr(v, $9, "", 1);
+    insertAttr(v, NULL, "]", 0);
+    $$ = makeleaf("3D Array");
 }
 ;
 
@@ -723,7 +747,7 @@ STMNT_EXPR: Assignment{
 
 Meth_invoc: ExpressionName '(' ARG_LIST ')'{
     vector<data> v;
-    insertAttr(v, makeleaf(*$1), "", 1);
+    insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, NULL, "(", 0);
     insertAttr(v, $3, "", 1);
     insertAttr(v, NULL, ")", 0);
@@ -771,7 +795,7 @@ AmbiguousName:  ID  {
 }
 ;
 
-LeftHandSide:   ExpressionName{$$ = makeleaf(*$1);}
+LeftHandSide:   ExpressionName{$$ = makeleaf("ID(" + *$1 + ")");}
 |               FieldAccess{$$ = $1;}
 |               ArrayAccess{$$ = $1;}
 /* |               VAR */
@@ -989,7 +1013,7 @@ PostfixExpression:              Primary{
     $$ = $1;
 }
 |                               ExpressionName{
-    $$ = makeleaf(*$1);
+    $$ = makeleaf("ID(" + *$1 + ")");
 }
 |                               PostIncrementExpression{
     $$ = $1;
@@ -1003,14 +1027,14 @@ FieldAccess:    Primary '.' ID{
     vector<data> v;
     insertAttr(v, $1, "", 1);
     //insertAttr(v, makeleaf("."), "", 1);
-    insertAttr(v, makeleaf(*$3), "", 1);
+    insertAttr(v, makeleaf("ID(" + *$3 + ")"), "", 1);
     $$ = makenode("FieldAccess", v);
 }
 |               KEY_SUPER '.' ID{
     vector<data> v;
     insertAttr(v, makeleaf("super"), "", 1);
     //insertAttr(v, makeleaf("."), "", 1);
-    insertAttr(v, makeleaf(*$3), "", 1);
+    insertAttr(v, makeleaf("ID(" + *$3 + ")"), "", 1);
     $$ = makenode("FieldAccess", v);
 }
 ;
@@ -1041,7 +1065,7 @@ PrimaryNoNewArray:  LIT{
 |                   KEY_NEW ID '(' ARG_LIST ')' Class_body{
     vector<data> v;
     insertAttr(v, makeleaf("new"), "", 1);
-    insertAttr(v, makeleaf(*$2), "", 1);
+    insertAttr(v, makeleaf("ID(" + *$2 + ")"), "", 1);
     insertAttr(v, NULL, "(", 0);
     insertAttr(v, $4, "", 1);
     insertAttr(v, NULL, ")", 0);
@@ -1051,7 +1075,7 @@ PrimaryNoNewArray:  LIT{
 |                   KEY_NEW ID '(' ARG_LIST ')'{
     vector<data> v;
     insertAttr(v, makeleaf("new"), "", 1);
-    insertAttr(v, makeleaf(*$2), "", 1);
+    insertAttr(v, makeleaf("ID(" + *$2 + ")"), "", 1);
     insertAttr(v, NULL, "(", 0);
     insertAttr(v, $4, "", 1);
     insertAttr(v, NULL, ")", 0);
@@ -1069,7 +1093,7 @@ ArrayCreationExpr:  KEY_NEW DTYPE DimExpr{
 |                   KEY_NEW ID DimExpr{
     vector<data> v;
     insertAttr(v, makeleaf("new"), "", 1);
-    insertAttr(v, makeleaf(*$2), "", 1);
+    insertAttr(v, makeleaf("ID(" + *$2 + ")"), "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("ArrayCreationExpr", v);
 }
@@ -1094,7 +1118,7 @@ DimExpr:    '[' Expr ']'{
 
 ArrayAccess:    ExpressionName '[' Expr ']'{
     vector<data> v;
-    insertAttr(v, makeleaf(*$1), "", 1);
+    insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, makeleaf("["), "", 1);
     insertAttr(v, $3, "", 1);
     insertAttr(v, makeleaf("]"), "", 1);
@@ -1150,24 +1174,37 @@ ARG_LISTp:   ARG_LISTp ',' Expr{
 ;
 
 LIT:    INT{
-    $$ = makeleaf(*$1);
+    string s = "INT(" + *$1 + ")";
+    $$ = makeleaf(s);
 }
 |       FLOAT{
-    $$ = makeleaf(*$1);
+    string s = "FLOAT(" + *$1 + ")";
+    $$ = makeleaf(s);
 }
 |       CHAR{
-    $$ = makeleaf(*$1);
+    string temp = *$1;
+    temp.erase(0, 1);
+    temp.erase(temp.length() - 1, 1);
+    string s = "CHAR(" + temp + ")";
+    $$ = makeleaf(s);
 }
 |       STRING{
-    $$ = makeleaf(*$1);
+    string temp = *$1;
+    temp.erase(0, 1);
+    temp.erase(temp.length() - 1, 1);
+    string s = "STRING(" + temp + ")";
+    $$ = makeleaf(s);
 }
 |       BOOL{
-    $$ = makeleaf(*$1);}
+    string s = "BOOL(" + *$1 + ")";
+    $$ = makeleaf(s);}
 |       LONG{
-    $$ = makeleaf(*$1);
+    string s = "LONG(" + *$1 + ")";
+    $$ = makeleaf(s);
 }
 |       DOUBLE{
-    $$ = makeleaf(*$1);
+    string s = "DOUBLE(" + *$1 + ")";
+    $$ = makeleaf(s);
 }
 ;
 
@@ -1209,7 +1246,7 @@ ClassDeclaration: MOD_EMPTY_LIST KEY_CLASS ID Class_body {
     vector<data> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, makeleaf("class"), "", 1);
-    insertAttr(v, makeleaf(*$3), "", 1);
+    insertAttr(v, makeleaf("ID(" + *$3 + ")"), "", 1);
     insertAttr(v, $4, "", 1);
     $$ = makenode("ClassDeclaration", v);
 }
@@ -1322,7 +1359,7 @@ Meth_Head:  DTYPE DIMS Meth_decl{
 
 Meth_decl:  ID '(' Param_list ')'{
     vector<data> v;
-    insertAttr(v, makeleaf(*$1), "", 1);
+    insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, NULL, "(", 0);
     insertAttr(v, $3, "", 1);
     insertAttr(v, NULL, ")", 0);
@@ -1330,7 +1367,7 @@ Meth_decl:  ID '(' Param_list ')'{
 }
 |           ID '(' ')'{
     vector<data> v;
-    insertAttr(v, makeleaf(*$1), "", 1);
+    insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, NULL, "( )", 0);
     $$ = makenode("Method Declaration", v);
 }
@@ -1395,7 +1432,7 @@ MOD :   KEY_PRIVATE{
 ConstructorDeclaration : MOD_EMPTY_LIST ID '(' Param_list ')' BLCK{
     vector<data> v;
     insertAttr(v, $1, "", 1);
-    insertAttr(v, makeleaf(*$2), "", 1);
+    insertAttr(v, makeleaf("ID(" + *$2 + ")"), "", 1);
     insertAttr(v, NULL, "(", 0);
     insertAttr(v, $4, "", 1);
     insertAttr(v, NULL, ")", 0);
@@ -1405,7 +1442,7 @@ ConstructorDeclaration : MOD_EMPTY_LIST ID '(' Param_list ')' BLCK{
 |                       MOD_EMPTY_LIST ID '(' ')' BLCK{
     vector<data> v;
     insertAttr(v, $1, "", 1);
-    insertAttr(v, makeleaf(*$2), "", 1);
+    insertAttr(v, makeleaf("ID(" + *$2 + ")"), "", 1);
     insertAttr(v, NULL, "( )", 0);
     insertAttr(v, $5, "", 1);
     $$ = makenode("construtor", v);
