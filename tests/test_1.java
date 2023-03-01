@@ -24,7 +24,7 @@ class rec2 {
 	}
 
 	public void main() {
-		IO io = new IO();
+		int io = new IO();
 		int a;
 		int b = a;
 		io.print_int(b);

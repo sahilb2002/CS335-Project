@@ -2,7 +2,7 @@
 
     #include<iostream>
     #include<fstream>
-    #include "AST.h"
+    #include <AST.h>
     #include<cstring>
     using namespace std;
 
@@ -664,7 +664,7 @@ VAR:    ID{
     insertAttr(v, NULL, "[", 0);
     insertAttr(v, $3, "", 1);
     insertAttr(v, NULL, "]", 0);
-    $$ = makeleaf("1D Array");
+    $$ = makenode("1D Array",v);
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']'{
     vector<data> v;
@@ -675,7 +675,7 @@ VAR:    ID{
     insertAttr(v, NULL, "[", 0);
     insertAttr(v, $6, "", 1);
     insertAttr(v, NULL, "]", 0);
-    $$ = makeleaf("2D Array");
+    $$ = makenode("2D Array",v);
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '[' EMP_EXPR ']'{
     vector<data> v;
@@ -689,7 +689,7 @@ VAR:    ID{
     insertAttr(v, NULL, "[", 0);
     insertAttr(v, $9, "", 1);
     insertAttr(v, NULL, "]", 0);
-    $$ = makeleaf("3D Array");
+    $$ = makenode("3D Array",v);
 }
 ;
 
@@ -1385,7 +1385,9 @@ Param_list: Param_list ',' Param{
     insertAttr(v, $3, "", 1);
     $$ = makenode("parameter list", v);
 }
-|           Param
+|           Param{
+    $$ = $1;
+}
 ;
 
 Param:  DTYPE VAR{
@@ -1459,44 +1461,43 @@ ConstructorDeclaration : MOD_EMPTY_LIST ID '(' Param_list ')' BLCK{
 
 
 int main(int argc, char** argv) {
-    argc--;
-    char* infile = NULL;
-    char* outfile = argv[0];
+    if(argc < 2){
+        cout << "Usage: " << argv[0] << " <input file> [--input=<input file>] [--output=<output file>] [--verbose] [--help]" << endl;
+        return 0;
+    }
+    char* infile = argv[1];
+    char* outfile = strdup(argv[0]);
     outfile = strcat(outfile, ".dot");
     bool verbose = false;
-    while(argc){
+    for(int i=1;i<argc;i++){
+        cout<<i<<endl;
         /* if argv contains --input= take it as input file */
-        if(strncmp(argv[argc], "--input=", 8) == 0){
-            infile = argv[argc] + 8;
+        if(strncmp(argv[i], "--input=", 8) == 0){
+            infile = argv[i] + 8;
         }
         /* if argv contains --output= take it as output file */
-        else if(strncmp(argv[argc], "--output=", 9) == 0){
-            outfile = argv[argc] + 9;
+        else if(strncmp(argv[i], "--output=", 9) == 0){
+            outfile = argv[i] + 9;
         }
         /* if argv is --verbose */
-        else if(strcmp(argv[argc], "--verbose") == 0){
+        else if(strcmp(argv[i], "--verbose") == 0){
             verbose = true;
         }
         /* if argv is --help print help message and exit.  */
-        else if(strcmp(argv[argc], "--help") == 0){
-            cout << "Usage: " << argv[0] << " --input=path/to/input.java [other options]" << endl;
+        else if(strcmp(argv[i], "--help") == 0){
+            cout << "Usage: " << argv[0] << " path/to/input.java [other options]" << endl;
             cout << "Other options:" << endl;
-            /* cout << "  --input=FILE\t\tRead input from FILE" << endl; */
+            cout << "  --input=FILE\t\tRead input from FILE" << endl;
             cout << "  --output=FILE\t\tWrite output to FILE" << endl;
             cout << "  --verbose\t\tPrint verbose output" << endl;
             cout << "  --help\t\tPrint this help message" << endl;
             return 0;
         }
         /* else print error */
-        else {
+        else if(i>1) {
             cout << "Invalid format! use" << argv[0] <<" --help for more info."<<endl;
             return -1; 
         }
-        argc--;
-    }
-    if(!infile){
-        cout << "Input file not given! use" << argv[0] <<" --help for more info."<<endl;
-        return -1;
     }
 
     /* Open input file... */
@@ -1530,5 +1531,9 @@ int main(int argc, char** argv) {
         yyparse();
     } while (!feof(yyin));
     endAST();
+    if(verbose){
+        cout<<"Parsing Complete"<<endl;
+        cout<<"Output written to "<<outfile<<endl;
+    }
   
 }

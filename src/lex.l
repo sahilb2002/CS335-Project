@@ -3,8 +3,8 @@
     #include<vector>
     #include<fstream>
     #include<string>
-    #include "../parser/AST.h"
-    #include "../parser/parse.tab.h"
+    #include <AST.h>
+    #include <parse.tab.h>
 
     using namespace std;
     //vector<string> names{"NULL", "Error", "Operator", "Separator", "Identifier", "Keyword", "String Literal", "Literal", "Comment", "EOFError"};
