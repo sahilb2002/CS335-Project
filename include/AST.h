@@ -11,17 +11,17 @@ typedef struct treeNode{
 	string node_name;
 }treeNode;
 
-typedef struct data{
-	treeNode* node;
-	string str;
-	bool is_node;
-}data;
+// typedef struct data{
+// 	treeNode* node;
+// 	string str;
+// 	bool is_node;
+// }data;
 
 void beginAST();
 void endAST();
 
-void insertAttr(vector<data>&v, treeNode*nod , string s , int flag );
+void insertAttr(vector<treeNode*>&v, treeNode*nod , string s , int flag );
 treeNode *makeleaf(string);
-treeNode *makenode(string , vector<data>&);
+treeNode *makenode(string , vector<treeNode*>&);
 
 #endif

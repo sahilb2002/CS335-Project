@@ -96,39 +96,39 @@
 
 %%
 START:  ImportDecl_list ClassDeclaration_list {
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "ImportList", 1);
     insertAttr(v, $2, "ClassList", 1);
     $$ = makenode("Program", v);
 }
 |       ClassDeclaration_list{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "ClassList", 1);
     $$ = makenode("Program", v);
 }
 ;
 
 ClassDeclaration_list:  ClassDeclaration_list ClassDeclaration{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "ClassList", 1);
     insertAttr(v, $2, "Class", 1);
     $$ = makenode("Classes", v);
 }
 |                       ClassDeclaration{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "Class", 1);
     $$ = makenode("ClassList", v);
 }
 ;
 
 ImportDecl_list:    ImportDecl_list ImportDecl{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "ImportList", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("ImportList", v);
 }
 |                   ImportDecl{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     $$ = makenode("ImportList", v);
 }
@@ -148,7 +148,7 @@ Imp_list:   Imp_list '.' ID {
 ;
 
 BODY:   BODY STMNT{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "Body", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("Body", v);
@@ -159,14 +159,14 @@ BODY:   BODY STMNT{
 ;
 
 BLCK:   '{' BODY '}'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, NULL, "{", 0);
     insertAttr(v, $2, "", 1);
     insertAttr(v, NULL, "}", 0);
     $$ = makenode("Block", v);
 }
 |       '{' '}'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, NULL, "{", 0);
     insertAttr(v, NULL, "}", 0);
     $$ = makenode("Block", v);
@@ -183,7 +183,7 @@ STMNT_without_sub:  BLCK{
     $$ = $1;
 }
 |                   KEY_RETURN EMP_EXPR ';'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("return"), "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("STMNT_without_sub", v);
@@ -195,7 +195,7 @@ STMNT_without_sub:  BLCK{
     $$ = makeleaf("break");
 }
 |                   KEY_YIELD Expr ';'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("yield"), "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("STMNT_without_sub", v);
@@ -210,7 +210,7 @@ STMNT_without_sub:  BLCK{
     $$ = $1;
 }
 |                   KEY_DO STMNT KEY_WHILE '(' Expr ')' ';'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("do"), "", 1);
     insertAttr(v, $2, "", 1);
     insertAttr(v, makeleaf("while"), "", 1);
@@ -224,7 +224,7 @@ STMNT_without_sub:  BLCK{
 ;
 
 SwitchStatement:    KEY_SWITCH '(' Expr ')' SwitchBlock{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("switch"), "", 1);
     insertAttr(v, NULL, "(", 0);
     insertAttr(v, $3, "", 1);
@@ -234,7 +234,7 @@ SwitchStatement:    KEY_SWITCH '(' Expr ')' SwitchBlock{
 }
 ;
 SwitchBlock:    '{' SwitchRule_list '}' {
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, NULL, "{", 0);
     insertAttr(v, $2, "", 1);
     insertAttr(v, NULL, "}", 0);
@@ -242,7 +242,7 @@ SwitchBlock:    '{' SwitchRule_list '}' {
 }
 |
     '{' SwitchBlockStatementGroup_list '}' {
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, NULL, "{", 0);
     insertAttr(v, $2, "", 1);
     insertAttr(v, NULL, "}", 0);
@@ -253,7 +253,7 @@ SwitchBlock:    '{' SwitchRule_list '}' {
 }
 |
     '{' SwitchBlockStatementGroup_list SwitchLabel_list '}' {
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, NULL, "{", 0);
     insertAttr(v, $2, "", 1);
     insertAttr(v, $3, "", 1);
@@ -262,7 +262,7 @@ SwitchBlock:    '{' SwitchRule_list '}' {
 }
 |
     '{'SwitchLabel_list '}' {
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, NULL, "{", 0);
     insertAttr(v, $2, "", 1);
     insertAttr(v, NULL, "}", 0);
@@ -271,7 +271,7 @@ SwitchBlock:    '{' SwitchRule_list '}' {
 ;
 
 SwitchBlockStatementGroup_list: SwitchBlockStatementGroup_list SwitchBlockStatementGroup{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("SwitchBlockStatementGroupList", v);
@@ -281,7 +281,7 @@ SwitchBlockStatementGroup_list: SwitchBlockStatementGroup_list SwitchBlockStatem
 }
 ;
 SwitchRule_list:    SwitchRule_list SwitchRule{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("SwitchRuleList", v);
@@ -292,14 +292,14 @@ SwitchRule_list:    SwitchRule_list SwitchRule{
 ;
 
 SwitchBlockStatementGroup:  SwitchLabel_list BODY{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("SwitchBlockStatementGroup", v);
 }
 
 SwitchLabel_list:  SwitchLabel_list SwitchLabel ':' {
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("SwitchLabelList", v);
@@ -310,21 +310,21 @@ SwitchLabel_list:  SwitchLabel_list SwitchLabel ':' {
 ;
 
 SwitchRule: SwitchLabel ARROW Expr ';' {
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, makeleaf("->"), "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("SwitchRule", v);
 }
 |           SwitchLabel ARROW BLCK {
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, makeleaf("->"), "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("SwitchRule", v);
 }
 |           SwitchLabel ARROW ThrowStatement {
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, makeleaf("->"), "", 1);
     insertAttr(v, $3, "", 1);
@@ -333,7 +333,7 @@ SwitchRule: SwitchLabel ARROW Expr ';' {
 ;
 
 SwitchLabel: KEY_CASE CaseConstant_list {
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("case"), "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("SwitchLabel", v);
@@ -344,7 +344,7 @@ SwitchLabel: KEY_CASE CaseConstant_list {
 ;
 
 CaseConstant_list: CaseConstant_list ',' ConditionalExpression {
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, NULL, ",", 0);
     insertAttr(v, $3, "", 1);
@@ -357,20 +357,20 @@ ConditionalExpression {
 ;
 
 ThrowStatement: KEY_THROW Expr ';' {
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("throw"), "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("ThrowStatement", v);
 }
 
 Assert_stmnt:   KEY_ASSERT Expr ';' {
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("assert"), "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("Assert_stmnt", v);
 }
 |               KEY_ASSERT Expr ':' Expr ';'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("assert"), "", 1);
     insertAttr(v, $2, "", 1);
     insertAttr(v, $4, "", 1);
@@ -410,7 +410,7 @@ STMNT_noshortif:    STMNT_without_sub{
 ;
 
 WHILE_STMNT: KEY_WHILE '(' Expr ')' STMNT{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("while"), "", 1);
     insertAttr(v,NULL, "(",0);
     insertAttr(v, $3, "", 1);
@@ -420,7 +420,7 @@ WHILE_STMNT: KEY_WHILE '(' Expr ')' STMNT{
 }
 ;
 WHILE_STMNT_noshortif: KEY_WHILE '(' Expr ')' STMNT_noshortif{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("while"), "", 1);
     insertAttr(v,NULL, "(",0);
     insertAttr(v, $3, "", 1);
@@ -430,7 +430,7 @@ WHILE_STMNT_noshortif: KEY_WHILE '(' Expr ')' STMNT_noshortif{
 }
 ;
 BASIC_FOR:  KEY_FOR '(' FOR_INIT ';' EMP_EXPR ';' FOR_UPDATE ')' STMNT{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("for"), "", 1);
     insertAttr(v,NULL, "(",0);
     insertAttr(v, $3, "", 1);
@@ -444,7 +444,7 @@ BASIC_FOR:  KEY_FOR '(' FOR_INIT ';' EMP_EXPR ';' FOR_UPDATE ')' STMNT{
 }
 ;
 BASIC_FOR_noshortif:    KEY_FOR '(' FOR_INIT ';' EMP_EXPR ';' FOR_UPDATE ')' STMNT_noshortif{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("FOR"), "", 1);
     insertAttr(v,NULL, "(",0);
     insertAttr(v, $3, "", 1);
@@ -457,7 +457,7 @@ BASIC_FOR_noshortif:    KEY_FOR '(' FOR_INIT ';' EMP_EXPR ';' FOR_UPDATE ')' STM
 ;
 
 FOR_UPDATE: STMNT_EXPR_list {
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     $$ = makenode("FOR_UPDATE", v);
 }
@@ -467,12 +467,12 @@ FOR_UPDATE: STMNT_EXPR_list {
 ;
 
 FOR_INIT:   DEF_VAR{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     $$ = makenode("FOR_INIT", v);
 }
 |           STMNT_EXPR_list{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     $$ = makenode("FOR_INIT", v);
 }
@@ -482,20 +482,20 @@ FOR_INIT:   DEF_VAR{
 ;
 
 STMNT_EXPR_list:    STMNT_EXPR_list ',' STMNT_EXPR{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("STMNT_EXPR_list", v);
 }
 |                   STMNT_EXPR{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     $$ = makenode("STMNT_EXPR_list", v);
 }
 ;
 
 IF_THEN:    KEY_IF '(' Expr ')' STMNT{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("if"), "", 1);
     insertAttr(v, $3, "", 1);
     insertAttr(v, $5, "", 1);
@@ -503,7 +503,7 @@ IF_THEN:    KEY_IF '(' Expr ')' STMNT{
 }
 ;
 IF_THEN_ELSE:   KEY_IF '(' Expr ')' STMNT_noshortif KEY_ELSE STMNT{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("if"), "", 1);
     insertAttr(v, $3, "", 1);
     insertAttr(v, $5, "", 1);
@@ -513,7 +513,7 @@ IF_THEN_ELSE:   KEY_IF '(' Expr ')' STMNT_noshortif KEY_ELSE STMNT{
 }
 ;
 IF_THEN_ELSE_noshortif: KEY_IF '(' Expr ')' STMNT_noshortif KEY_ELSE STMNT_noshortif{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("if"), "", 1);
     insertAttr(v, $3, "", 1);
     insertAttr(v, $5, "", 1);
@@ -525,7 +525,7 @@ IF_THEN_ELSE_noshortif: KEY_IF '(' Expr ')' STMNT_noshortif KEY_ELSE STMNT_nosho
 
 
 DEF_VAR: STAT DTYPE VAR_LIST{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $2, "", 1);
     insertAttr(v, $3, "", 1);
@@ -534,13 +534,13 @@ DEF_VAR: STAT DTYPE VAR_LIST{
 ;
 
 VAR_LIST:   VAR_LIST ',' VAR{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("VAR_LIST", v);
 }
 |           VAR_LIST ',' VARA{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("VAR_LIST", v);
@@ -554,13 +554,13 @@ VAR_LIST:   VAR_LIST ',' VAR{
 ;
 
 VARA:   ID '=' Expr{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("=", v);
 }
 |       ID '[' EMP_EXPR ']' '=' Array_init_1D{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, NULL, "[", 0);
     insertAttr(v, $3, "", 1);
@@ -572,7 +572,7 @@ VARA:   ID '=' Expr{
     $$ = makenode("=", v);
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' Array_init_2D{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, NULL, "[", 0);
     insertAttr(v, $3, "", 1);
@@ -587,7 +587,7 @@ VARA:   ID '=' Expr{
     $$ = makenode("=", v);
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' Array_init_3D{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, NULL, "[", 0);
     insertAttr(v, $3, "", 1);
@@ -610,7 +610,7 @@ Array_init_1D: L1D{
     $$ = $1;
 }
 |               KEY_NEW DTYPE '[' Expr ']'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("new"), "", 1);
     insertAttr(v, $2, "", 1);
     insertAttr(v, NULL, "[", 0);
@@ -623,7 +623,7 @@ Array_init_2D: L2D{
     $$ = $1;
 }
 |               KEY_NEW DTYPE '[' Expr ']' '[' Expr ']'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("new"), "", 1);
     insertAttr(v, $2, "", 1);
     insertAttr(v, NULL, "[", 0);
@@ -639,7 +639,7 @@ Array_init_3D: L3D{
     $$ = $1;
 }
 |               KEY_NEW DTYPE '[' Expr ']' '[' Expr ']' '[' Expr ']'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("new"), "", 1);
     insertAttr(v, $2, "", 1);
     insertAttr(v, NULL, "[", 0);
@@ -659,7 +659,7 @@ VAR:    ID{
     $$ = makeleaf("ID(" + *$1 + ")");
 }
 |       ID '[' EMP_EXPR ']'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, NULL, "[", 0);
     insertAttr(v, $3, "", 1);
@@ -667,7 +667,7 @@ VAR:    ID{
     $$ = makenode("1D Array",v);
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, NULL, "[", 0);
     insertAttr(v, $3, "", 1);
@@ -678,7 +678,7 @@ VAR:    ID{
     $$ = makenode("2D Array",v);
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '[' EMP_EXPR ']'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, NULL, "[", 0);
     insertAttr(v, $3, "", 1);
@@ -698,7 +698,7 @@ L3D:    '{' CONT3D '}'{
 }
 ;
 CONT3D: CONT3D ',' L2D{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, NULL, ",", 0);
     insertAttr(v, $3, "", 1);
@@ -714,7 +714,7 @@ L2D:    '{' CONT2D '}'{
 }
 ;
 CONT2D: CONT2D ',' L1D{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, NULL, ",", 0);
     insertAttr(v, $3, "", 1);
@@ -730,7 +730,7 @@ L1D: '{' CONT1D '}' {
 } 
 ;
 CONT1D: CONT1D ',' Expr{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, NULL, ",", 0);
     insertAttr(v, $3, "", 1);
@@ -752,7 +752,7 @@ STMNT_EXPR: Assignment{
 ;
 
 Meth_invoc: ExpressionName '(' ARG_LIST ')'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, NULL, "(", 0);
     insertAttr(v, $3, "", 1);
@@ -771,7 +771,7 @@ AssignmentExpression: ConditionalExpression{$$ = $1;}
 ;
 
 Assignment: LeftHandSide AssignmentOperator Expr{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode(*$2, v);
@@ -809,7 +809,7 @@ LeftHandSide:   ExpressionName{$$ = makeleaf("ID(" + *$1 + ")");}
 
 ConditionalExpression:  ConditionalOrExpression{$$ = $1;}
 |                       ConditionalOrExpression '?' Expr ':' ConditionalExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     insertAttr(v, $5, "", 1);
@@ -819,7 +819,7 @@ ConditionalExpression:  ConditionalOrExpression{$$ = $1;}
 
 ConditionalOrExpression:    ConditionalAndExpression{$$ = $1;}
 |                           ConditionalOrExpression LOG_OR ConditionalAndExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("||", v);
@@ -828,7 +828,7 @@ ConditionalOrExpression:    ConditionalAndExpression{$$ = $1;}
 
 ConditionalAndExpression:   InclusiveOrExpression{$$ = $1;}
 |                           ConditionalAndExpression LOG_AND InclusiveOrExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("&&", v);
@@ -837,7 +837,7 @@ ConditionalAndExpression:   InclusiveOrExpression{$$ = $1;}
 
 InclusiveOrExpression:      ExclusiveOrExpression{$$ = $1;}
 |                           InclusiveOrExpression '|' ExclusiveOrExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("|", v);
@@ -846,7 +846,7 @@ InclusiveOrExpression:      ExclusiveOrExpression{$$ = $1;}
 
 ExclusiveOrExpression:      AndExpression{$$ = $1;}
 |                           ExclusiveOrExpression '^' AndExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("^", v);}
@@ -854,7 +854,7 @@ ExclusiveOrExpression:      AndExpression{$$ = $1;}
 
 AndExpression:              EqualityExpression{$$ = $1;}
 |                           AndExpression '&' EqualityExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("&", v);
@@ -863,12 +863,12 @@ AndExpression:              EqualityExpression{$$ = $1;}
 
 EqualityExpression:         RelationalExpression{$$ = $1;}
 |                           EqualityExpression EQUAL RelationalExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("==", v);}
 |                           EqualityExpression NOT_EQUAL RelationalExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("!=", v);
@@ -877,25 +877,25 @@ EqualityExpression:         RelationalExpression{$$ = $1;}
 
 RelationalExpression:       ShiftExpression{$$ = $1;}
 |                           RelationalExpression '<' ShiftExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("<", v);
 }
 |                           RelationalExpression '>' ShiftExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode(">", v);
 }
 |                           RelationalExpression GTR_EQUAL ShiftExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode(">=", v);
 }
 |                           RelationalExpression LESS_EQUAL ShiftExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("<=", v);
@@ -904,19 +904,19 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
 
 ShiftExpression:            AdditiveExpression{$$ = $1;}
 |                           ShiftExpression LEFT_SHIFT AdditiveExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("<<", v);
 }
 |                           ShiftExpression RIGHT_SHIFT AdditiveExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode(">>", v);
 }
 |                           ShiftExpression SIGN_SHIFT AdditiveExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode(">>>", v);
@@ -925,13 +925,13 @@ ShiftExpression:            AdditiveExpression{$$ = $1;}
 
 AdditiveExpression:         MultiplicativeExpression{$$ = $1;}
 |                           AdditiveExpression '+' MultiplicativeExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("+", v);
 }
 |                           AdditiveExpression '-' MultiplicativeExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("-", v);
@@ -940,19 +940,19 @@ AdditiveExpression:         MultiplicativeExpression{$$ = $1;}
 
 MultiplicativeExpression:   UnaryExpression{$$ = $1;}
 |                           MultiplicativeExpression '*' UnaryExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("*", v);
 }
 |                           MultiplicativeExpression '/' UnaryExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("/", v);
 }
 |                           MultiplicativeExpression '%' UnaryExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("%", v);
@@ -962,12 +962,12 @@ MultiplicativeExpression:   UnaryExpression{$$ = $1;}
 UnaryExpression:            PreIncrementExpression{$$ = $1;}
 |                           PreDecrementExpression{$$ = $1;}
 |                           '+' UnaryExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $2, "", 1);
     $$ = makenode("+", v);
 }
 |                           '-' UnaryExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $2, "", 1);
     $$ = makenode("-", v);
 }
@@ -975,14 +975,14 @@ UnaryExpression:            PreIncrementExpression{$$ = $1;}
 ;
 
 PreIncrementExpression:     INCREMENT UnaryExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $2, "", 1);
     $$ = makenode("++", v);
 }
 ;
 
 PreDecrementExpression:     DECREMENT UnaryExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $2, "", 1);
     $$ = makenode("--", v);
 }
@@ -992,12 +992,12 @@ UnaryExpressionNotPlusMinus:    PostfixExpression{
     $$ = $1;
 }
 |                               '~' UnaryExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $2, "", 1);
     $$ = makenode("~", v);
 }
 |                               '!' UnaryExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $2, "", 1);
     $$ = makenode("!", v);
 }
@@ -1007,7 +1007,7 @@ UnaryExpressionNotPlusMinus:    PostfixExpression{
 ;
 
 CastExpression:             '(' DTYPE ')' UnaryExpression{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, NULL, "(", 0);
     insertAttr(v, $2, "", 1);
     insertAttr(v, NULL, ")", 0);
@@ -1030,14 +1030,14 @@ PostfixExpression:              Primary{
 ;
 
 FieldAccess:    Primary '.' ID{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     //insertAttr(v, makeleaf("."), "", 1);
     insertAttr(v, makeleaf("ID(" + *$3 + ")"), "", 1);
     $$ = makenode("FieldAccess", v);
 }
 |               KEY_SUPER '.' ID{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("super"), "", 1);
     //insertAttr(v, makeleaf("."), "", 1);
     insertAttr(v, makeleaf("ID(" + *$3 + ")"), "", 1);
@@ -1059,7 +1059,7 @@ PrimaryNoNewArray:  LIT{
     $$ = $1;
 }
 |                   '(' Expr ')'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, NULL, "(", 0);
     insertAttr(v, $2, "", 1);
     insertAttr(v, NULL, ")", 0);
@@ -1069,7 +1069,7 @@ PrimaryNoNewArray:  LIT{
 |                   Meth_invoc{$$ = $1;}
 |                   FieldAccess{$$ = $1;}
 |                   KEY_NEW ID '(' ARG_LIST ')' Class_body{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("new"), "", 1);
     insertAttr(v, makeleaf("ID(" + *$2 + ")"), "", 1);
     insertAttr(v, NULL, "(", 0);
@@ -1079,7 +1079,7 @@ PrimaryNoNewArray:  LIT{
     $$ = makenode("PrimaryNoNewArray", v);
 }
 |                   KEY_NEW ID '(' ARG_LIST ')'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("new"), "", 1);
     insertAttr(v, makeleaf("ID(" + *$2 + ")"), "", 1);
     insertAttr(v, NULL, "(", 0);
@@ -1090,14 +1090,14 @@ PrimaryNoNewArray:  LIT{
 ;
 
 ArrayCreationExpr:  KEY_NEW DTYPE DimExpr{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("new"), "", 1);
     insertAttr(v, $2, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("ArrayCreationExpr", v);
 }
 |                   KEY_NEW ID DimExpr{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("new"), "", 1);
     insertAttr(v, makeleaf("ID(" + *$2 + ")"), "", 1);
     insertAttr(v, $3, "", 1);
@@ -1106,14 +1106,14 @@ ArrayCreationExpr:  KEY_NEW DTYPE DimExpr{
 ;
 
 DimExpr:    '[' Expr ']'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("["), "", 1);
     insertAttr(v, $2, "", 1);
     insertAttr(v, makeleaf("]"), "", 1);
     $$ = makenode("Dimensional Expression", v);
 }
 |           DimExpr '[' Expr ']'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, makeleaf("["), "", 1);
     insertAttr(v, $3, "", 1);
@@ -1123,7 +1123,7 @@ DimExpr:    '[' Expr ']'{
 ;
 
 ArrayAccess:    ExpressionName '[' Expr ']'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, makeleaf("["), "", 1);
     insertAttr(v, $3, "", 1);
@@ -1131,7 +1131,7 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
     $$ = makenode("ArrayAccess", v);
 }
 |               PrimaryNoNewArray '[' Expr ']'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, makeleaf("["), "", 1);
     insertAttr(v, $3, "", 1);
@@ -1141,14 +1141,14 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
 ;
 
 PostIncrementExpression:        PostfixExpression INCREMENT{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     $$ = makenode("++", v);
 }
 ;
 
 PostDecrementExpression:        PostfixExpression DECREMENT {
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     $$ = makenode("--", v);
 }
@@ -1167,13 +1167,13 @@ ARG_LIST: ARG_LISTp {$$ = $1;}
 ;
 
 ARG_LISTp:   ARG_LISTp ',' Expr{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("Argument List", v);
 }
 |           Expr{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     $$ = makenode("Argument List", v);
 }
@@ -1249,7 +1249,7 @@ DTYPE:  KEY_INT{
 
 
 ClassDeclaration: MOD_EMPTY_LIST KEY_CLASS ID Class_body {
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, makeleaf("class"), "", 1);
     insertAttr(v, makeleaf("ID(" + *$3 + ")"), "", 1);
@@ -1259,14 +1259,14 @@ ClassDeclaration: MOD_EMPTY_LIST KEY_CLASS ID Class_body {
 ;
 
 Class_body: '{' Class_body_dec_list '}'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("{"), "", 1);
     insertAttr(v, $2, "", 1);
     insertAttr(v, makeleaf("}"), "", 1);
     $$ = makenode("ClassBody", v);
 }
 |               '{' '}'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("{"), "", 1);
     insertAttr(v, makeleaf("}"), "", 1);
     $$ = makenode("ClassBody", v);
@@ -1274,7 +1274,7 @@ Class_body: '{' Class_body_dec_list '}'{
 ;
 
 Class_body_dec_list :   Class_body_dec_list Class_body_dec{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("ClassBody Declaration", v);
@@ -1286,7 +1286,7 @@ Class_body_dec:     Class_DEF_VAR{$$ = $1;}
 |                   MethodDeclaration{$$ = $1;}
 |                   ClassDeclaration{$$ = $1;}
 |                   STAT BLCK{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("ClassBody Declaration", v);
@@ -1295,7 +1295,7 @@ Class_body_dec:     Class_DEF_VAR{$$ = $1;}
 ;
 
 Class_DEF_VAR:  MOD_EMPTY_LIST DTYPE VAR_LIST ';'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $2, "", 1);
     insertAttr(v, $3, "", 1);
@@ -1303,7 +1303,7 @@ Class_DEF_VAR:  MOD_EMPTY_LIST DTYPE VAR_LIST ';'{
 }
 ;
 MethodDeclaration: MOD_EMPTY_LIST Meth_Head Meth_Body{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $2, "", 1);
     insertAttr(v, $3, "", 1);
@@ -1318,14 +1318,14 @@ Meth_Body:   BLCK{$$ = $1;}
 ;
 
 DIMS_list: DIMS_list '[' ']'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, makeleaf("["), "", 1);
     insertAttr(v, makeleaf("]"), "", 1);
     $$ = makenode("Dimensions", v);
 }
 |     '[' ']'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("["), "", 1);
     insertAttr(v, makeleaf("]"), "", 1);
     $$ = makenode("Dimensions", v);
@@ -1336,27 +1336,27 @@ DIMS: DIMS_list{$$ = $1;}
 ;
 
 Meth_Head:  DTYPE DIMS Meth_decl{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $2, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("Method Header", v);
 }
 |           KEY_VOID DIMS Meth_decl{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("void"), "", 1);
     insertAttr(v, $2, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("Method Header", v);
 }
 |           DTYPE Meth_decl{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("Method Header", v);
 }
 |           KEY_VOID Meth_decl{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("void"), "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("Method Header", v);
@@ -1364,7 +1364,7 @@ Meth_Head:  DTYPE DIMS Meth_decl{
 ;
 
 Meth_decl:  ID '(' Param_list ')'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, NULL, "(", 0);
     insertAttr(v, $3, "", 1);
@@ -1372,7 +1372,7 @@ Meth_decl:  ID '(' Param_list ')'{
     $$ = makenode("Method Declaration", v);
 }
 |           ID '(' ')'{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, NULL, "( )", 0);
     $$ = makenode("Method Declaration", v);
@@ -1380,7 +1380,7 @@ Meth_decl:  ID '(' Param_list ')'{
 ;
 
 Param_list: Param_list ',' Param{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("parameter list", v);
@@ -1391,7 +1391,7 @@ Param_list: Param_list ',' Param{
 ;
 
 Param:  DTYPE VAR{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("parameter", v);
@@ -1407,7 +1407,7 @@ MOD_EMPTY_LIST: MOD_LIST{
 ;
 
 MOD_LIST:   MOD_LIST MOD{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("modifier list", v);
@@ -1416,29 +1416,29 @@ MOD_LIST:   MOD_LIST MOD{
 ;
 
 MOD :   KEY_PRIVATE{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("private"), "", 1);
     $$ = makenode("modifier", v);
 }
 |       KEY_PUBLIC{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("public"), "", 1);
     $$ = makenode("modifier", v);
 }
 |       KEY_STATIC{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("static"), "", 1);
     $$ = makenode("modifier", v);
 }
 |      KEY_PROTECTED{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, makeleaf("protected"), "", 1);
     $$ = makenode("modifier", v);
 }
 ;
 
 ConstructorDeclaration : MOD_EMPTY_LIST ID '(' Param_list ')' BLCK{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, makeleaf("ID(" + *$2 + ")"), "", 1);
     insertAttr(v, NULL, "(", 0);
@@ -1448,7 +1448,7 @@ ConstructorDeclaration : MOD_EMPTY_LIST ID '(' Param_list ')' BLCK{
     $$ = makenode("construtor", v);
 }
 |                       MOD_EMPTY_LIST ID '(' ')' BLCK{
-    vector<data> v;
+    vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, makeleaf("ID(" + *$2 + ")"), "", 1);
     insertAttr(v, NULL, "( )", 0);

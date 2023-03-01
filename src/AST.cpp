@@ -1,4 +1,5 @@
 #include <AST.h>
+#include<iostream>
 
 extern FILE *dotfile;
 
@@ -12,12 +13,14 @@ void endAST(){
 }
 
 
-void insertAttr(vector<data> &v, treeNode* nod, string s, int flag){
-	data d;
-	d.node = nod;
-	d.str = s;
-	d.is_node = flag;
-	v.push_back(d);
+void insertAttr(vector<treeNode*> &v, treeNode* nod, string s, int flag){
+	if(flag==0){
+		nod = new treeNode;
+		nod->node_name = s;
+		nod->node_id = ++NodeCounter;
+		if(s!="") fprintf(dotfile, "\t%d [label=\"%s\"];\n", nod->node_id, s.c_str());
+	}
+	v.push_back(nod);
 }
 
 treeNode *makeleaf(string str){
@@ -43,7 +46,7 @@ treeNode *makeleaf(string str){
 	return node;
 }
 
-treeNode *makenode(string s, vector<data> &v){
+treeNode *makenode(string s, vector<treeNode*> &v){
 	//making node and printing it in dot file
 	treeNode *node = new treeNode;
 	node->node_name = s;
@@ -51,25 +54,12 @@ treeNode *makenode(string s, vector<data> &v){
 
 	vector<int> op_id;
 
-	for(int i = 0; i<v.size(); ++i){
-		if(!v[i].is_node){
-			int opid = ++NodeCounter;
-			op_id.push_back(opid);
-			if(v[i].str!="") fprintf(dotfile, "\t%d [label=\"%s\"];\n", opid, v[i].str.c_str());
-		}
-	}
-
-
 	fprintf(dotfile, "\t%d [label=\"%s\"];\n", node->node_id, node->node_name.c_str());
 
 	int j=0;
-	for(int i=0; i<v.size(); ++i){
-		// if string or node is NULL, dont print in dot 
-		if(v[i].is_node && v[i].node ) fprintf(dotfile, "\t%d -> %d;\n", node->node_id, v[i].node->node_id);
-		if(!v[i].is_node){
-			if(v[i].str!="") fprintf(dotfile, "\t%d -> %d;\n", node->node_id, op_id[j]);
-			j++;
-		}
+	for(auto nod:v){
+		// if string is NULL, dont print in dot 
+		if( nod && nod->node_name !="" ) fprintf(dotfile, "\t%d -> %d;\n", node->node_id, nod->node_id);
 	}
 
 	return node;
