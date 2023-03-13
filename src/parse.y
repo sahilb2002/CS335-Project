@@ -89,9 +89,21 @@
 %token<str> ARROW               // ->
 
 
-%type<str> Imp_list AmbiguousName ExpressionName AssignmentOperator
-%type<ptr> START ImportDecl_list ClassDeclaration_list CastExpression ClassDeclaration ImportDecl PrimaryNoNewArray BODY BLCK STMNT_without_sub  Assert_stmnt STMNT STMNT_noshortif WHILE_STMNT WHILE_STMNT_noshortif BASIC_FOR BASIC_FOR_noshortif FOR_UPDATE FOR_INIT STMNT_EXPR_list IF_THEN IF_THEN_ELSE IF_THEN_ELSE_noshortif DEF_VAR VAR_LIST VARA VAR STMNT_EXPR Meth_invoc Expr AssignmentExpression Assignment LeftHandSide ConditionalAndExpression ConditionalOrExpression ConditionalExpression InclusiveOrExpression ExclusiveOrExpression AndExpression EqualityExpression RelationalExpression ShiftExpression AdditiveExpression MultiplicativeExpression UnaryExpression PreIncrementExpression PreDecrementExpression UnaryExpressionNotPlusMinus PostfixExpression FieldAccess Primary ArrayCreationExpr DimExpr ArrayAccess PostDecrementExpression PostIncrementExpression EMP_EXPR ARG_LIST ARG_LISTp LIT STAT DTYPE Class_body Class_body_dec_list Class_body_dec Class_DEF_VAR MethodDeclaration Meth_Body DIMS_list Meth_Head DIMS Meth_decl Param_list Param MOD_EMPTY_LIST MOD_LIST MOD ConstructorDeclaration 
-%type<ptr> SwitchBlock SwitchBlockStatementGroup SwitchBlockStatementGroup_list SwitchLabel SwitchLabel_list SwitchRule SwitchRule_list SwitchStatement ThrowStatement CaseConstant_list 
+%type<str> Imp_list AmbiguousName ExpressionName AssignmentOperator 
+%type<ptr> START ImportDecl_list ClassDeclaration_list CastExpression ClassDeclaration ImportDecl BLCK_STMNT
+%type<ptr> PrimaryNoNewArray BODY BLCK STMNT_without_sub  Assert_stmnt STMNT STMNT_noshortif ConstructorDeclaration
+%type<ptr> WHILE_STMNT WHILE_STMNT_noshortif BASIC_FOR BASIC_FOR_noshortif FOR_UPDATE FOR_INIT
+%type<ptr> STMNT_EXPR_list IF_THEN IF_THEN_ELSE IF_THEN_ELSE_noshortif DEF_VAR VAR_LIST VARA VAR
+%type<ptr> STMNT_EXPR Meth_invoc Expr AssignmentExpression Assignment LeftHandSide ConditionalAndExpression
+%type<ptr> ConditionalOrExpression ConditionalExpression InclusiveOrExpression ExclusiveOrExpression 
+%type<ptr> AndExpression EqualityExpression RelationalExpression ShiftExpression AdditiveExpression
+%type<ptr> MultiplicativeExpression UnaryExpression PreIncrementExpression PreDecrementExpression
+%type<ptr> UnaryExpressionNotPlusMinus PostfixExpression FieldAccess Primary ArrayCreationExpr DimExpr
+%type<ptr> ArrayAccess PostDecrementExpression PostIncrementExpression EMP_EXPR ARG_LIST ARG_LISTp LIT
+%type<ptr> STAT DTYPE Class_body Class_body_dec_list Class_body_dec Class_DEF_VAR MethodDeclaration 
+%type<ptr> Meth_Body DIMS_list Meth_Head DIMS Meth_decl Param_list Param MOD_EMPTY_LIST MOD_LIST MOD
+%type<ptr> SwitchBlock SwitchBlockStatementGroup SwitchBlockStatementGroup_list SwitchLabel 
+%type<ptr> SwitchLabel_list SwitchRule SwitchRule_list SwitchStatement ThrowStatement CaseConstant_list 
 %type<ptr> CONT1D CONT2D CONT3D Array_init_1D Array_init_2D Array_init_3D L1D L2D L3D
 
 %%
@@ -147,13 +159,21 @@ Imp_list:   Imp_list '.' ID {
 }
 ;
 
-BODY:   BODY STMNT{
+BODY:   BODY BLCK_STMNT{
     vector<treeNode*> v;
     insertAttr(v, $1, "Body", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("Body", v);
 }
-|       STMNT{
+|       BLCK_STMNT{
+    $$ = $1;
+}
+;
+
+BLCK_STMNT: STMNT {
+    $$ = $1;
+} 
+|           DEF_VAR ';' {
     $$ = $1;
 }
 ;
@@ -177,9 +197,6 @@ STMNT_without_sub:  BLCK{
     $$ = $1;
 } 
 |                   Expr ';'{
-    $$ = $1;
-}
-|                   DEF_VAR ';'{
     $$ = $1;
 }
 |                   KEY_RETURN EMP_EXPR ';'{
