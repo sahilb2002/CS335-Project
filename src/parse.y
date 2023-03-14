@@ -550,6 +550,19 @@ DEF_VAR: STAT DTYPE VAR_LIST{
     insertAttr(v, $3, "", 1);
     $$ = makenode("DEF_VAR", v);
 }
+|       KEY_STATIC ID VAR_LIST{
+    vector<treeNode*> v;
+    insertAttr(v, makeleaf("static"),"",1);
+    insertAttr(v,makeleaf("ID(" + *$2 + ")"), "", 1 );
+    insertAttr(v, $3, "", 1);
+    $$ = makenode("DEF_VAR", v);
+}
+|        ID VAR_LIST{
+    vector<treeNode*> v;
+    insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
+    insertAttr(v, $2, "", 1);
+    $$ = makenode("DEF_VAR", v);
+}
 ;
 
 VAR_LIST:   VAR_LIST ',' VAR{
