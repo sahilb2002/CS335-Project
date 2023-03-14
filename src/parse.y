@@ -10,6 +10,7 @@
     extern int yylex();
     extern int yyparse();
     extern int yylineno;
+    extern treeNode* root;
     extern FILE* yyin;
     FILE* dotfile;
 
@@ -112,6 +113,7 @@ START:  ImportDecl_list ClassDeclaration_list {
     insertAttr(v, $1, "ImportList", 1);
     insertAttr(v, $2, "ClassList", 1);
     $$ = makenode("Program", v);
+    root = $$;
 }
 |       ClassDeclaration_list{
     vector<treeNode*> v;

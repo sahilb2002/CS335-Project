@@ -9,6 +9,7 @@ using namespace std;
 typedef struct treeNode{
 	int node_id;
 	string node_name;
+	vector<treeNode*> children;
 }treeNode;
 
 // typedef struct data{

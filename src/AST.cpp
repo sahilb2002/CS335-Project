@@ -3,6 +3,7 @@
 
 extern FILE *dotfile;
 
+treeNode *root = NULL;
 
 int NodeCounter = 0;
 void beginAST(){
@@ -59,7 +60,11 @@ treeNode *makenode(string s, vector<treeNode*> &v){
 	int j=0;
 	for(auto nod:v){
 		// if string is NULL, dont print in dot 
-		if( nod && nod->node_name !="" ) fprintf(dotfile, "\t%d -> %d;\n", node->node_id, nod->node_id);
+		if( nod && nod->node_name !="" ) {
+			fprintf(dotfile, "\t%d -> %d;\n", node->node_id, nod->node_id);
+			node->children.push_back(nod);
+		}
+
 	}
 
 	return node;
