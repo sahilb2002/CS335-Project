@@ -2,7 +2,8 @@
 
     #include<iostream>
     #include<fstream>
-    #include <AST.h>
+    #include<AST.h>
+    #include<symbol_table.h>
     #include<cstring>
     using namespace std;
 
@@ -12,13 +13,20 @@
     extern int yylineno;
     extern treeNode* root;
     extern FILE* yyin;
+    extern SymbolTable* current;
+
+    int dType;
+    int retType;
+    int mod_flag;
+    bool* ptr_func_def = NULL;
+    extern vector<SymbTbl_entry*> methKeys;
+    int flag = 0;
     FILE* dotfile;
 
-    void yyerror(const char *s) {
-        cout << "[Line no: " << yylineno << "] " << "error: " << "parse error: " << s << endl;
+    void yyerror(string s) {
+        cout << "[Line no: " << yylineno << "] " << "error: " << s << endl;
         exit(-1);
     }
-
 
 %}
 
@@ -114,6 +122,7 @@ START:  ImportDecl_list ClassDeclaration_list {
     insertAttr(v, $2, "ClassList", 1);
     $$ = makenode("Program", v);
     root = $$;
+
 }
 |       ClassDeclaration_list{
     vector<treeNode*> v;
@@ -180,12 +189,15 @@ BLCK_STMNT: STMNT {
 }
 ;
 
-BLCK:   '{' BODY '}'{
+BLCK:   '{' {create_symtbl();} BODY '}'{
     vector<treeNode*> v;
     insertAttr(v, NULL, "{", 0);
-    insertAttr(v, $2, "", 1);
+    insertAttr(v, $3, "", 1);
     insertAttr(v, NULL, "}", 0);
     $$ = makenode("Block", v);
+
+    // semantics
+    current = current->parent;
 }
 |       '{' '}'{
     vector<treeNode*> v;
@@ -242,14 +254,17 @@ STMNT_without_sub:  BLCK{
 
 ;
 
-SwitchStatement:    KEY_SWITCH '(' Expr ')' SwitchBlock{
+SwitchStatement:    KEY_SWITCH '(' Expr ')' {create_symtbl();} SwitchBlock{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("switch"), "", 1);
     insertAttr(v, NULL, "(", 0);
     insertAttr(v, $3, "", 1);
     insertAttr(v, NULL, ")", 0);
-    insertAttr(v, $5, "", 1);
+    insertAttr(v, $6, "", 1);
     $$ = makenode("SwitchStatement", v);
+    
+    //end of scope
+    current = current->parent;
 }
 ;
 SwitchBlock:    '{' SwitchRule_list '}' {
@@ -448,30 +463,41 @@ WHILE_STMNT_noshortif: KEY_WHILE '(' Expr ')' STMNT_noshortif{
     $$ = makenode("WHILE_STMNT_noshortif", v);
 }
 ;
-BASIC_FOR:  KEY_FOR '(' FOR_INIT ';' EMP_EXPR ';' FOR_UPDATE ')' STMNT{
+
+FOR: KEY_FOR '('{
+    create_symtbl();
+}
+
+BASIC_FOR:  FOR FOR_INIT ';' EMP_EXPR ';' FOR_UPDATE ')' STMNT{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("for"), "", 1);
     insertAttr(v,NULL, "(",0);
-    insertAttr(v, $3, "", 1);
+    insertAttr(v, $2, "", 1);
     insertAttr(v, NULL, ";", 0);
-    insertAttr(v, $5, "", 1);
+    insertAttr(v, $4, "", 1);
     insertAttr(v, NULL, ";", 0);
-    insertAttr(v, $7, "", 1);
+    insertAttr(v, $6, "", 1);
     insertAttr(v,NULL, ")",0);
-    insertAttr(v, $9, "", 1);
+    insertAttr(v, $8, "", 1);
     $$ = makenode("BASIC_FOR", v);
+
+    // end of scope
+    current = current->parent;
 }
 ;
-BASIC_FOR_noshortif:    KEY_FOR '(' FOR_INIT ';' EMP_EXPR ';' FOR_UPDATE ')' STMNT_noshortif{
+BASIC_FOR_noshortif:    FOR FOR_INIT ';' EMP_EXPR ';' FOR_UPDATE ')' STMNT_noshortif{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("FOR"), "", 1);
     insertAttr(v,NULL, "(",0);
-    insertAttr(v, $3, "", 1);
-    insertAttr(v, $5, "", 1);
-    insertAttr(v, $7, "", 1);
+    insertAttr(v, $2, "", 1);
+    insertAttr(v, $4, "", 1);
+    insertAttr(v, $6, "", 1);
     insertAttr(v,NULL, ")",0);
-    insertAttr(v, $9, "", 1);
+    insertAttr(v, $8, "", 1);
     $$ = makenode("BASIC_FOR_noshortif", v);
+
+    // end of scope
+    current = current->parent;
 }
 ;
 
@@ -570,18 +596,63 @@ VAR_LIST:   VAR_LIST ',' VAR{
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("VAR_LIST", v);
+
+    // sematics
+    CREATE_ST_KEY(temp, $3->lexeme);
+    CREATE_ST_ENTRY(temp_entry,"ID", $3->lexeme, yylineno, mod_flag);
+    temp_entry->type.push_back($3->dim*NUM_TYPES + dType);
+    
+    int err = insert_symtbl(temp,temp_entry);
+    if(err == ALREADY_EXIST){
+        yyerror("Variable already declared: " + $3->lexeme);
+    }
+    free(temp);
+
+
 }
 |           VAR_LIST ',' VARA{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("VAR_LIST", v);
+    // sematics
+    CREATE_ST_KEY(temp, $3->lexeme);
+    CREATE_ST_ENTRY(temp_entry,"ID", $3->lexeme, yylineno, mod_flag);
+    temp_entry->type.push_back($3->dim*NUM_TYPES + dType);
+    
+    int err = insert_symtbl(temp,temp_entry);
+    if(err == ALREADY_EXIST){
+        yyerror("Variable already declared: " + $3->lexeme);
+    }
+    free(temp);
 }
 |           VAR{
     $$ = $1;
+
+    // sematics
+    CREATE_ST_KEY(temp, $1->lexeme);
+    CREATE_ST_ENTRY(temp_entry,"ID", $1->lexeme, yylineno, mod_flag);
+    temp_entry->type.push_back($1->dim*NUM_TYPES + dType);
+    
+    int err = insert_symtbl(temp,temp_entry);
+    if(err == ALREADY_EXIST){
+        yyerror("Variable already declared: " + $1->lexeme);
+    }
+    free(temp);
 }
 |           VARA{
     $$ = $1;
+
+    // sematics
+    CREATE_ST_KEY(temp, $1->lexeme);
+    CREATE_ST_ENTRY(temp_entry,"ID", $1->lexeme, yylineno, mod_flag);
+    temp_entry->type.push_back($1->dim*NUM_TYPES + dType);
+    
+    int err = insert_symtbl(temp,temp_entry);
+    if(err == ALREADY_EXIST){
+        yyerror("Variable already declared: " + $1->lexeme);
+    }
+    free(temp);
 }
 ;
 
@@ -590,6 +661,11 @@ VARA:   ID '=' Expr{
     insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("=", v);
+
+    $$->lexeme = *$1;
+    $$->dim = 0;
+    // sematics
+
 }
 |       ID '[' EMP_EXPR ']' '=' Array_init_1D{
     vector<treeNode*> v;
@@ -602,6 +678,10 @@ VARA:   ID '=' Expr{
     insertAttr(v, temp, "", 1);
     insertAttr(v, $6, "", 1);
     $$ = makenode("=", v);
+
+    $$->lexeme = *$1;
+    $$->dim = 1;
+    // sematics
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' Array_init_2D{
     vector<treeNode*> v;
@@ -617,6 +697,10 @@ VARA:   ID '=' Expr{
     insertAttr(v, temp, "", 1);
     insertAttr(v, $9, "", 1);
     $$ = makenode("=", v);
+
+    $$->lexeme = *$1;
+    $$->dim = 2;
+    // sematics
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' Array_init_3D{
     vector<treeNode*> v;
@@ -635,6 +719,11 @@ VARA:   ID '=' Expr{
     insertAttr(v, temp, "", 1);
     insertAttr(v, $12, "", 1);
     $$ = makenode("=", v);
+
+    $$->lexeme = *$1;
+    $$->dim = 3;
+    // sematics
+
 }
 ;
 
@@ -689,6 +778,9 @@ Array_init_3D: L3D{
 
 VAR:    ID{
     $$ = makeleaf("ID(" + *$1 + ")");
+
+    $$->lexeme = *$1;
+    $$->dim = 0;
 }
 |       ID '[' EMP_EXPR ']'{
     vector<treeNode*> v;
@@ -697,6 +789,9 @@ VAR:    ID{
     insertAttr(v, $3, "", 1);
     insertAttr(v, NULL, "]", 0);
     $$ = makenode("1D Array",v);
+
+    $$->lexeme = *$1;
+    $$->dim = 1;
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']'{
     vector<treeNode*> v;
@@ -708,6 +803,9 @@ VAR:    ID{
     insertAttr(v, $6, "", 1);
     insertAttr(v, NULL, "]", 0);
     $$ = makenode("2D Array",v);
+
+    $$->lexeme = *$1;
+    $$->dim = 2;
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '[' EMP_EXPR ']'{
     vector<treeNode*> v;
@@ -722,6 +820,9 @@ VAR:    ID{
     insertAttr(v, $9, "", 1);
     insertAttr(v, NULL, "]", 0);
     $$ = makenode("3D Array",v);
+
+    $$->lexeme = *$1;
+    $$->dim = 3;
 }
 ;
 
@@ -1258,35 +1359,45 @@ STAT:   KEY_STATIC{
 
 DTYPE:  KEY_INT{
     $$ = makeleaf("int");
+    dType = TYPE_INT;
 }
 |       KEY_BOOL{
     $$ = makeleaf("bool");
+    dType = TYPE_BOOL;
 }
 |       KEY_DOUBLE{
     $$ = makeleaf("double");
+    dType = TYPE_DOUBLE;
 }
 |       KEY_FLOAT{
     $$ = makeleaf("float");
+    dType = TYPE_FLOAT;
 }
 |       KEY_LONG{
     $$ = makeleaf("long");
+    dType = TYPE_LONG;
 }
 |       KEY_CHAR{
     $$ = makeleaf("char");
+    dType = TYPE_CHAR;
 }
 |       KEY_STRING{
     $$ = makeleaf("string");
+    dType = TYPE_STRING;
 }
 ;
 
 
-ClassDeclaration: MOD_EMPTY_LIST KEY_CLASS ID Class_body {
+ClassDeclaration: MOD_EMPTY_LIST KEY_CLASS ID{CREATE_ST_KEY(temp,*$3);temp->type.push_back(TYPE_CLASS); CREATE_ST_ENTRY(temp_entry, "ID", *$3, yylineno, 0); temp_entry->type.push_back(TYPE_CLASS); if(insert_symtbl(temp,temp_entry ) == ALREADY_EXIST) yyerror("Class " + *$3 + " Already Exist!") ;create_symtbl();free(temp);} Class_body {
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, makeleaf("class"), "", 1);
     insertAttr(v, makeleaf("ID(" + *$3 + ")"), "", 1);
-    insertAttr(v, $4, "", 1);
+    insertAttr(v, $5, "", 1);
     $$ = makenode("ClassDeclaration", v);
+
+    //end scope
+    current = current->parent;
 }
 ;
 
@@ -1343,9 +1454,16 @@ MethodDeclaration: MOD_EMPTY_LIST Meth_Head Meth_Body{
 }
 ;
 
-Meth_Body:   BLCK{$$ = $1;}
+Meth_Body:   BLCK{
+    $$ = $1;
+}
 |           ';'{
     $$ = NULL;
+    *ptr_func_def = false;
+    ptr_func_def = NULL;
+
+    //sematics
+    methKeys.clear();
 }
 ;
 
@@ -1395,19 +1513,50 @@ Meth_Head:  DTYPE DIMS Meth_decl{
 }
 ;
 
-Meth_decl:  ID '(' Param_list ')'{
+Meth_decl:  ID '('{retType = dType;} Param_list ')'{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, NULL, "(", 0);
-    insertAttr(v, $3, "", 1);
+    insertAttr(v, $4, "", 1);
     insertAttr(v, NULL, ")", 0);
     $$ = makenode("Method Declaration", v);
+
+    //sematics
+    CREATE_ST_KEY(temp, *$1);
+    for(auto p:methKeys){
+        temp->type.push_back(p->type[0]);
+    }
+    temp->type.push_back(retType);
+    CREATE_ST_ENTRY(temp_entry, "ID", *$1, yylineno, mod_flag);
+    temp_entry->type = temp->type;
+    ptr_func_def = &(temp_entry->func_is_defined);
+    if(insert_symtbl(temp, temp_entry) == ALREADY_EXIST){
+        SymbTbl_entry* __temp = lookup(temp);
+        if(__temp->func_is_defined){
+            yyerror("Redeclaration of function " + *$1);
+        }
+        ptr_func_def = &(__temp->func_is_defined);
+    }
 }
 |           ID '(' ')'{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, NULL, "( )", 0);
     $$ = makenode("Method Declaration", v);
+
+    //sematics
+    CREATE_ST_KEY(temp, *$1);
+    temp->type.push_back(dType);
+    CREATE_ST_ENTRY(temp_entry, "ID", *$1, yylineno, mod_flag);
+    temp_entry->type = temp->type;
+    ptr_func_def = &(temp_entry->func_is_defined);
+    if(insert_symtbl(temp, temp_entry) == ALREADY_EXIST){
+        SymbTbl_entry* __temp = lookup(temp);
+        if(__temp->func_is_defined){
+            yyerror("Redeclaration of function " + *$1);
+        }
+        ptr_func_def = &(__temp->func_is_defined);
+    }
 }
 ;
 
@@ -1416,9 +1565,21 @@ Param_list: Param_list ',' Param{
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("parameter list", v);
+
+    // sematics
+    CREATE_ST_ENTRY(temp_entry,"ID", $3->lexeme, yylineno, mod_flag);
+    temp_entry->type.push_back($3->dim*NUM_TYPES + dType);
+    
+    methKeys.push_back(temp_entry);
 }
 |           Param{
     $$ = $1;
+
+    // sematics
+    CREATE_ST_ENTRY(temp_entry,"ID", $1->lexeme, yylineno, mod_flag);
+    temp_entry->type.push_back($1->dim*NUM_TYPES + dType);
+        
+    methKeys.push_back(temp_entry);
 }
 ;
 
@@ -1427,6 +1588,8 @@ Param:  DTYPE VAR{
     insertAttr(v, $1, "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("parameter", v);
+    $$->lexeme = $2->lexeme;
+    $$->dim = $2->dim;
 }
 ;
 
@@ -1435,6 +1598,7 @@ MOD_EMPTY_LIST: MOD_LIST{
 }
 |               %empty{
     $$ = NULL;
+    mod_flag = 0;
 }
 ;
 
@@ -1451,21 +1615,29 @@ MOD :   KEY_PRIVATE{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("private"), "", 1);
     $$ = makenode("modifier", v);
+
+    mod_flag = PRIVATE_FLAG;
 }
 |       KEY_PUBLIC{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("public"), "", 1);
     $$ = makenode("modifier", v);
+
+    mod_flag = PUBLIC_FLAG;
 }
 |       KEY_STATIC{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("static"), "", 1);
     $$ = makenode("modifier", v);
+
+    mod_flag = 0;
 }
 |      KEY_PROTECTED{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("protected"), "", 1);
     $$ = makenode("modifier", v);
+
+    mod_flag = PROTECTED_FLAG;
 }
 ;
 
@@ -1502,7 +1674,7 @@ int main(int argc, char** argv) {
     outfile = strcat(outfile, ".dot");
     bool verbose = false;
     for(int i=1;i<argc;i++){
-        cout<<i<<endl;
+        /* cout<<i<<endl; */
         /* if argv contains --input= take it as input file */
         if(strncmp(argv[i], "--input=", 8) == 0){
             infile = argv[i] + 8;
@@ -1563,6 +1735,7 @@ int main(int argc, char** argv) {
         yyparse();
     } while (!feof(yyin));
     endAST();
+    printSymbolTable(current);
     if(verbose){
         cout<<"Parsing Complete"<<endl;
         cout<<"Output written to "<<outfile<<endl;
