@@ -4,6 +4,7 @@
     #include<fstream>
     #include<AST.h>
     #include<symbol_table.h>
+    #include<typecheck.h>
     #include<cstring>
     using namespace std;
 
@@ -98,8 +99,8 @@
 %token<str> ARROW               // ->
 
 
-%type<str> Imp_list AmbiguousName ExpressionName AssignmentOperator 
-%type<ptr> START ImportDecl_list ClassDeclaration_list CastExpression ClassDeclaration ImportDecl BLCK_STMNT
+%type<str> Imp_list AssignmentOperator 
+%type<ptr> START ImportDecl_list AmbiguousName ExpressionName ClassDeclaration_list CastExpression ClassDeclaration ImportDecl BLCK_STMNT
 %type<ptr> PrimaryNoNewArray BODY BLCK STMNT_without_sub  Assert_stmnt STMNT STMNT_noshortif ConstructorDeclaration
 %type<ptr> WHILE_STMNT WHILE_STMNT_noshortif BASIC_FOR BASIC_FOR_noshortif FOR_UPDATE FOR_INIT
 %type<ptr> STMNT_EXPR_list IF_THEN IF_THEN_ELSE IF_THEN_ELSE_noshortif DEF_VAR VAR_LIST VARA VAR
@@ -600,8 +601,7 @@ VAR_LIST:   VAR_LIST ',' VAR{
     // sematics
     CREATE_ST_KEY(temp, $3->lexeme);
     CREATE_ST_ENTRY(temp_entry,"ID", $3->lexeme, yylineno, mod_flag);
-    temp_entry->type.push_back($3->dim*NUM_TYPES + dType);
-    
+    temp_entry->type.push_back(get_type(dType, $3->dim));
     int err = insert_symtbl(temp,temp_entry);
     if(err == ALREADY_EXIST){
         yyerror("Variable already declared: " + $3->lexeme);
@@ -618,7 +618,7 @@ VAR_LIST:   VAR_LIST ',' VAR{
     // sematics
     CREATE_ST_KEY(temp, $3->lexeme);
     CREATE_ST_ENTRY(temp_entry,"ID", $3->lexeme, yylineno, mod_flag);
-    temp_entry->type.push_back($3->dim*NUM_TYPES + dType);
+    temp_entry->type.push_back(get_type(dType, $3->dim));
     
     int err = insert_symtbl(temp,temp_entry);
     if(err == ALREADY_EXIST){
@@ -632,7 +632,7 @@ VAR_LIST:   VAR_LIST ',' VAR{
     // sematics
     CREATE_ST_KEY(temp, $1->lexeme);
     CREATE_ST_ENTRY(temp_entry,"ID", $1->lexeme, yylineno, mod_flag);
-    temp_entry->type.push_back($1->dim*NUM_TYPES + dType);
+    temp_entry->type.push_back(get_type(dType, $1->dim));
     
     int err = insert_symtbl(temp,temp_entry);
     if(err == ALREADY_EXIST){
@@ -646,7 +646,7 @@ VAR_LIST:   VAR_LIST ',' VAR{
     // sematics
     CREATE_ST_KEY(temp, $1->lexeme);
     CREATE_ST_ENTRY(temp_entry,"ID", $1->lexeme, yylineno, mod_flag);
-    temp_entry->type.push_back($1->dim*NUM_TYPES + dType);
+    temp_entry->type.push_back(get_type(dType, $1->dim));
     
     int err = insert_symtbl(temp,temp_entry);
     if(err == ALREADY_EXIST){
@@ -891,6 +891,12 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
     insertAttr(v, $3, "", 1);
     insertAttr(v, NULL, ")", 0);
     $$ = makenode("Meth_invoc", v);
+
+    /*type checking*/
+    CREATE_ST_KEY(temp, $1->lexeme);
+    if($3){
+        temp->type = $3->typevec;vec;
+    }
 }
 ;
 
@@ -908,6 +914,9 @@ Assignment: LeftHandSide AssignmentOperator Expr{
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode(*$2, v);
+
+    \\type checking
+    $$->type = $1->type;
 }
 ;
 
@@ -920,21 +929,37 @@ AssignmentOperator: ASSIGN_OP{
 ;
 
 ExpressionName:  AmbiguousName '.' ID{
-    *$$ = *$1 + "." + *$3;
+    $$->lexeme = $1->lexeme + "." + *$3;
+
 }
 |                ID {
-    *$$ = *$1;
+    $$->lexeme = *$1;
+    CREATE_ST_KEY(temp, *$1);
+    SymbTbl_entry* entry = lookup(temp);
+    if(entry && !entry->is_func){
+        $$->type = entry->type[0];
+    }
+    else{
+        $$->type = TYPE_ERROR;
+    }
 }
 ;
 AmbiguousName:  ID  {
-    *$$ = *$1;
+    $$->lexeme = *$1;
 }
 |               AmbiguousName '.' ID{
-    *$$ = *$1 + "." + *$3;
+    $$->lexeme = $1->lexeme + "." + *$3;
 }
 ;
 
-LeftHandSide:   ExpressionName{$$ = makeleaf("ID(" + *$1 + ")");}
+LeftHandSide:   ExpressionName{
+    $$ = makeleaf("ID(" + $1->lexeme + ")");
+    $$->lexeme = $1->lexeme;
+    $$->type = $1->type;
+    if($1->type == TYPE_ERROR){
+        yyerror("Unidentified Symbol "+ $$->lexeme);
+    }
+}
 |               FieldAccess{$$ = $1;}
 |               ArrayAccess{$$ = $1;}
 /* |               VAR */
@@ -947,6 +972,12 @@ ConditionalExpression:  ConditionalOrExpression{$$ = $1;}
     insertAttr(v, $3, "", 1);
     insertAttr(v, $5, "", 1);
     $$ = makenode("?:", v);
+
+    //type checking
+    if($1->type == TYPE_BOOL)$$->type = maxType($3->type, $5->type);
+    else{
+        yyerror("TypeError: Conditional Expression: Type Mismatch");
+    }
 }
 ;
 
@@ -956,6 +987,9 @@ ConditionalOrExpression:    ConditionalAndExpression{$$ = $1;}
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("||", v);
+
+    //type checking
+    $$->type = relCheck($1->type, $3->type);
 }
 ;
 
@@ -965,6 +999,9 @@ ConditionalAndExpression:   InclusiveOrExpression{$$ = $1;}
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("&&", v);
+
+    //type checking
+    $$->type = relCheck($1->type, $3->type);
 }
 ;
 
@@ -974,6 +1011,9 @@ InclusiveOrExpression:      ExclusiveOrExpression{$$ = $1;}
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("|", v);
+
+    //type checking
+    $$->type = onlyIntCheck($1->type, $3->type, "|");
 }
 ;
 
@@ -983,6 +1023,9 @@ ExclusiveOrExpression:      AndExpression{$$ = $1;}
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("^", v);}
+
+    //type checking
+    $$->type = onlyIntCheck($1->type, $3->type, "^");
 ;
 
 AndExpression:              EqualityExpression{$$ = $1;}
@@ -991,6 +1034,9 @@ AndExpression:              EqualityExpression{$$ = $1;}
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("&", v);
+
+    //type checking
+    $$->type = onlyIntCheck($1->type, $3->type,"&" );
 }
 ;
 
@@ -999,12 +1045,19 @@ EqualityExpression:         RelationalExpression{$$ = $1;}
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
-    $$ = makenode("==", v);}
+    $$ = makenode("==", v);
+    
+    //type checking
+    $$->type = relCheck($1->type, $3->type);
+}
 |                           EqualityExpression NOT_EQUAL RelationalExpression{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("!=", v);
+
+    //type checking
+    $$->type = relCheck($1->type, $3->type);
 }
 ;
 
@@ -1014,24 +1067,36 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("<", v);
+
+    //type checking
+    $$->type = relCheck($1->type, $3->type);
 }
 |                           RelationalExpression '>' ShiftExpression{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode(">", v);
+
+    //type checking
+    $$->type = relCheck($1->type, $3->type);
 }
 |                           RelationalExpression GTR_EQUAL ShiftExpression{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode(">=", v);
+
+    //type checking
+    $$->type = relCheck($1->type, $3->type);
 }
 |                           RelationalExpression LESS_EQUAL ShiftExpression{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("<=", v);
+
+    //type checking
+    $$->type = relCheck($1->type, $3->type);
 }
 ;
 
@@ -1041,18 +1106,27 @@ ShiftExpression:            AdditiveExpression{$$ = $1;}
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("<<", v);
+
+    //type checking
+    $$->type = onlyIntCheck($1->type, $3->type, "<<");
 }
 |                           ShiftExpression RIGHT_SHIFT AdditiveExpression{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode(">>", v);
+
+    //type checking
+    $$->type = onlyIntCheck($1->type, $3->type, ">>");
 }
 |                           ShiftExpression SIGN_SHIFT AdditiveExpression{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode(">>>", v);
+
+    //type checking
+    $$->type = onlyIntCheck($1->type, $3->type, ">>>");
 }
 ;
 
@@ -1062,12 +1136,18 @@ AdditiveExpression:         MultiplicativeExpression{$$ = $1;}
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("+", v);
+
+    //typeChecking
+    $$->type = addCheck($1->type, $3->type);
 }
 |                           AdditiveExpression '-' MultiplicativeExpression{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("-", v);
+
+    //typeChecking
+    $$->type = addCheck($1->type, $3->type);
 }
 ;
 
@@ -1077,18 +1157,27 @@ MultiplicativeExpression:   UnaryExpression{$$ = $1;}
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("*", v);
+
+    //typeChecking
+    $$->type = multCheck($1->type, $3->type);
 }
 |                           MultiplicativeExpression '/' UnaryExpression{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("/", v);
+
+    //typeChecking
+    $$->type = multCheck($1->type, $3->type);
 }
 |                           MultiplicativeExpression '%' UnaryExpression{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("%", v);
+
+    //typeChecking
+    $$->type = onlyIntCheck($1->type, $3->type, "%");
 }
 ;
 
@@ -1098,11 +1187,17 @@ UnaryExpression:            PreIncrementExpression{$$ = $1;}
     vector<treeNode*> v;
     insertAttr(v, $2, "", 1);
     $$ = makenode("+", v);
+
+    //type checking
+    $$->type = $2->type;
 }
 |                           '-' UnaryExpression{
     vector<treeNode*> v;
     insertAttr(v, $2, "", 1);
     $$ = makenode("-", v);
+
+    //type checking
+    $$->type = $2->type;
 }
 |                           UnaryExpressionNotPlusMinus{$$ = $1;}
 ;
@@ -1111,6 +1206,9 @@ PreIncrementExpression:     INCREMENT UnaryExpression{
     vector<treeNode*> v;
     insertAttr(v, $2, "", 1);
     $$ = makenode("++", v);
+
+    //type checking
+    $$->type = $2->type;
 }
 ;
 
@@ -1118,6 +1216,9 @@ PreDecrementExpression:     DECREMENT UnaryExpression{
     vector<treeNode*> v;
     insertAttr(v, $2, "", 1);
     $$ = makenode("--", v);
+
+    //type checking
+    $$->type = $2->type;
 }
 ;
 
@@ -1128,11 +1229,17 @@ UnaryExpressionNotPlusMinus:    PostfixExpression{
     vector<treeNode*> v;
     insertAttr(v, $2, "", 1);
     $$ = makenode("~", v);
+
+    //type checking
+    $$->type = $2->type;
 }
 |                               '!' UnaryExpression{
     vector<treeNode*> v;
     insertAttr(v, $2, "", 1);
     $$ = makenode("!", v);
+
+    //type checking
+    $$->type = $2->type;
 }
 |   CastExpression {
     $$ = $1;
@@ -1146,6 +1253,12 @@ CastExpression:             '(' DTYPE ')' UnaryExpression{
     insertAttr(v, NULL, ")", 0);
     insertAttr(v, $4, "", 1);
     $$ = makenode("CastExpression", v);
+
+    //type checking
+    if($4->type == TYPE_STRING && $2->type != TYPE_STRING){
+        yyerror("Cannot cast from String to " + to_string($2->type));
+    }
+    else $$->type = $2->type;
 }
 
 PostfixExpression:              Primary{
@@ -1153,6 +1266,7 @@ PostfixExpression:              Primary{
 }
 |                               ExpressionName{
     $$ = makeleaf("ID(" + *$1 + ")");
+    $$ = $1;
 }
 |                               PostIncrementExpression{
     $$ = $1;
@@ -1168,6 +1282,21 @@ FieldAccess:    Primary '.' ID{
     //insertAttr(v, makeleaf("."), "", 1);
     insertAttr(v, makeleaf("ID(" + *$3 + ")"), "", 1);
     $$ = makenode("FieldAccess", v);
+
+    /*type checking*/
+    if($1->type != TYPE_CLASS){
+        yyerror("Cannot access field of non-class type");
+    }
+    else{
+        CREATE_ST_KEY(temp, *$3);   
+        SymbTbl_entry* entry = lookup(temp);
+        if(entry){
+            $$->type = entry->type;
+        }
+        else{
+            yyerror("Field " + *$3 + " not found");
+        }
+    }
 }
 |               KEY_SUPER '.' ID{
     vector<treeNode*> v;
@@ -1197,11 +1326,14 @@ PrimaryNoNewArray:  LIT{
     insertAttr(v, $2, "", 1);
     insertAttr(v, NULL, ")", 0);
     $$ = makenode("PrimaryNoNewArray", v);
+
+    //type checking
+    $$->type = $2->type;
 }
 |                   ArrayAccess{$$ = $1;}
 |                   Meth_invoc{$$ = $1;}
 |                   FieldAccess{$$ = $1;}
-|                   KEY_NEW ID '(' ARG_LIST ')' Class_body{
+/* |                   KEY_NEW ID '(' ARG_LIST ')' Class_body{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("new"), "", 1);
     insertAttr(v, makeleaf("ID(" + *$2 + ")"), "", 1);
@@ -1210,7 +1342,7 @@ PrimaryNoNewArray:  LIT{
     insertAttr(v, NULL, ")", 0);
     insertAttr(v, $6, "", 1);
     $$ = makenode("PrimaryNoNewArray", v);
-}
+} */
 |                   KEY_NEW ID '(' ARG_LIST ')'{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("new"), "", 1);
@@ -1228,6 +1360,9 @@ ArrayCreationExpr:  KEY_NEW DTYPE DimExpr{
     insertAttr(v, $2, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("ArrayCreationExpr", v);
+
+    //type checking
+    $$->type = $2->type + $3->type;
 }
 |                   KEY_NEW ID DimExpr{
     vector<treeNode*> v;
@@ -1244,6 +1379,12 @@ DimExpr:    '[' Expr ']'{
     insertAttr(v, $2, "", 1);
     insertAttr(v, makeleaf("]"), "", 1);
     $$ = makenode("Dimensional Expression", v);
+
+    //type checking
+    if(onlyIntCheck($2->type) == -1){
+        yyerror("Array index must be of type int");
+    }
+    $$->type = TYPE_ARRAY;
 }
 |           DimExpr '[' Expr ']'{
     vector<treeNode*> v;
@@ -1252,6 +1393,12 @@ DimExpr:    '[' Expr ']'{
     insertAttr(v, $3, "", 1);
     insertAttr(v, makeleaf("]"), "", 1);
     $$ = makenode("Dimensional Expression", v);
+
+    //type checking
+    if(onlyIntCheck($3->type) == -1){
+        yyerror("Array index must be of type int");
+    }
+    $$->type = $1->type + TYPE_ARRAY;
 }
 ;
 
@@ -1262,6 +1409,17 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
     insertAttr(v, $3, "", 1);
     insertAttr(v, makeleaf("]"), "", 1);
     $$ = makenode("ArrayAccess", v);
+
+    /* type checking */
+    if(onlyIntCheck($3->type)==TYPE_ERROR){
+        yyerror("Array index must be of type int");
+    }
+    if($1->type.compare($1->type.size()-2, 2, TYPE_ARRAY)==0){
+        $$->type = $1->type.substr(0, $1->type.size()-2);
+    }
+    else{
+        yyerror("Cannot access array of type " + to_string($$->type));
+    }
 }
 |               PrimaryNoNewArray '[' Expr ']'{
     vector<treeNode*> v;
@@ -1270,6 +1428,18 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
     insertAttr(v, $3, "", 1);
     insertAttr(v, makeleaf("]"), "", 1);
     $$ = makenode("ArrayAccess", v);
+
+    /* type checking */
+    if(onlyIntCheck($3->type)==-1)){
+        yyerror("Array index must be of type int");
+    }
+    if($1->type.compare($1->type.size()-2, 2, TYPE_ARRAY)==0){
+        $$->type = $1->type.substr(0, $1->type.size()-2);
+    }
+    else{
+        yyerror("Cannot access array of type " + to_string($$->type));
+    }
+
 }
 ;
 
@@ -1304,21 +1474,29 @@ ARG_LISTp:   ARG_LISTp ',' Expr{
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("Argument List", v);
+
+    // type checking
+    $$->typevec.push_back($3->type);
 }
 |           Expr{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     $$ = makenode("Argument List", v);
+
+    // type checking
+    $$->typevec.push_back($1->type);
 }
 ;
 
 LIT:    INT{
     string s = "INT(" + *$1 + ")";
     $$ = makeleaf(s);
+    $$->type = TYPE_INT;
 }
 |       FLOAT{
     string s = "FLOAT(" + *$1 + ")";
     $$ = makeleaf(s);
+    $$->type = TYPE_FLOAT;
 }
 |       CHAR{
     string temp = *$1;
@@ -1326,6 +1504,7 @@ LIT:    INT{
     temp.erase(temp.length() - 1, 1);
     string s = "CHAR(" + temp + ")";
     $$ = makeleaf(s);
+    $$->type = TYPE_CHAR;
 }
 |       STRING{
     string temp = *$1;
@@ -1333,17 +1512,22 @@ LIT:    INT{
     temp.erase(temp.length() - 1, 1);
     string s = "STRING(" + temp + ")";
     $$ = makeleaf(s);
+    $$->type = TYPE_STRING;
 }
 |       BOOL{
     string s = "BOOL(" + *$1 + ")";
-    $$ = makeleaf(s);}
+    $$ = makeleaf(s);
+    $$->type = TYPE_BOOL;
+}
 |       LONG{
     string s = "LONG(" + *$1 + ")";
     $$ = makeleaf(s);
+    $$->type = TYPE_LONG;
 }
 |       DOUBLE{
     string s = "DOUBLE(" + *$1 + ")";
     $$ = makeleaf(s);
+    $$->type = TYPE_DOUBLE;
 }
 ;
 
@@ -1360,35 +1544,42 @@ STAT:   KEY_STATIC{
 DTYPE:  KEY_INT{
     $$ = makeleaf("int");
     dType = TYPE_INT;
+    $$->type = dType;
 }
 |       KEY_BOOL{
     $$ = makeleaf("bool");
     dType = TYPE_BOOL;
+    $$->type = dType;
 }
 |       KEY_DOUBLE{
     $$ = makeleaf("double");
     dType = TYPE_DOUBLE;
+    $$->type = dType;
 }
 |       KEY_FLOAT{
     $$ = makeleaf("float");
     dType = TYPE_FLOAT;
+    $$->type = dType;
 }
 |       KEY_LONG{
     $$ = makeleaf("long");
     dType = TYPE_LONG;
+    $$->type = dType;
 }
 |       KEY_CHAR{
     $$ = makeleaf("char");
     dType = TYPE_CHAR;
+    $$->type = dType;
 }
 |       KEY_STRING{
     $$ = makeleaf("string");
     dType = TYPE_STRING;
+    $$->type = dType;
 }
 ;
 
 
-ClassDeclaration: MOD_EMPTY_LIST KEY_CLASS ID{CREATE_ST_KEY(temp,*$3);temp->type.push_back(TYPE_CLASS); CREATE_ST_ENTRY(temp_entry, "ID", *$3, yylineno, 0); temp_entry->type.push_back(TYPE_CLASS); if(insert_symtbl(temp,temp_entry ) == ALREADY_EXIST) yyerror("Class " + *$3 + " Already Exist!") ;create_symtbl();free(temp);} Class_body {
+ClassDeclaration: MOD_EMPTY_LIST KEY_CLASS ID{CREATE_ST_KEY(temp,*$3);temp->type.push_back(TYPE_CLASS); CREATE_ST_ENTRY(temp_entry, "ID", *$3, yylineno, 0); temp_entry->type.push_back(TYPE_CLASS); if(insert_symtbl(temp,temp_entry ) == ALREADY_EXIST) yyerror("Class " + *$3 + " Already Exist!") ;create_symtbl(); temp_entry->table = current; free(temp);} Class_body {
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, makeleaf("class"), "", 1);
@@ -1526,9 +1717,10 @@ Meth_decl:  ID '('{retType = dType;} Param_list ')'{
     for(auto p:methKeys){
         temp->type.push_back(p->type[0]);
     }
-    temp->type.push_back(retType);
     CREATE_ST_ENTRY(temp_entry, "ID", *$1, yylineno, mod_flag);
     temp_entry->type = temp->type;
+    temp_entry->type.push_back(retType);
+    temp_entry->is_func = true;
     ptr_func_def = &(temp_entry->func_is_defined);
     if(insert_symtbl(temp, temp_entry) == ALREADY_EXIST){
         SymbTbl_entry* __temp = lookup(temp);
@@ -1568,7 +1760,7 @@ Param_list: Param_list ',' Param{
 
     // sematics
     CREATE_ST_ENTRY(temp_entry,"ID", $3->lexeme, yylineno, mod_flag);
-    temp_entry->type.push_back($3->dim*NUM_TYPES + dType);
+    temp_entry->type.push_back(get_type($3->dim, dType));
     
     methKeys.push_back(temp_entry);
 }
@@ -1577,7 +1769,7 @@ Param_list: Param_list ',' Param{
 
     // sematics
     CREATE_ST_ENTRY(temp_entry,"ID", $1->lexeme, yylineno, mod_flag);
-    temp_entry->type.push_back($1->dim*NUM_TYPES + dType);
+    temp_entry->type.push_back(get_type($1->dim, dType));
         
     methKeys.push_back(temp_entry);
 }
@@ -1674,6 +1866,7 @@ int main(int argc, char** argv) {
     outfile = strcat(outfile, ".dot");
     bool verbose = false;
     for(int i=1;i<argc;i++){
+        
         /* cout<<i<<endl; */
         /* if argv contains --input= take it as input file */
         if(strncmp(argv[i], "--input=", 8) == 0){

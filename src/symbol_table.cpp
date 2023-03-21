@@ -63,3 +63,10 @@ void printSymbolTable(SymbolTable* tbl){
         printSymbolTable(child);
     }
 }
+string get_type(string& dType, int dim){
+    string type = dType;
+    for(int i=0; i<dim; i++){
+        type += TYPE_ARRAY;
+    }
+    return type;
+}

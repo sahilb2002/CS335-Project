@@ -11,14 +11,10 @@ typedef struct treeNode{
 	string node_name;
 	string lexeme;
 	int dim;
+	string type;
+	vector<string> typevec;
 	vector<treeNode*> children;
 }treeNode;
-
-// typedef struct data{
-// 	treeNode* node;
-// 	string str;
-// 	bool is_node;
-// }data;
 
 void beginAST();
 void endAST();

@@ -8,15 +8,17 @@
 #define ALREADY_EXIST -1
 #define INSERT_SUCC 1
 
-#define TYPE_CLASS 0
-#define TYPE_INT 1
-#define TYPE_FLOAT 2
-#define TYPE_CHAR 3
-#define TYPE_VOID 4
-#define TYPE_BOOL 5
-#define TYPE_STRING 6
-#define TYPE_DOUBLE 7
-#define TYPE_LONG 8
+#define TYPE_ERROR "ERROR"
+#define TYPE_CLASS "CLASS"
+#define TYPE_INT "INT"
+#define TYPE_LONG "LONG"
+#define TYPE_CHAR "CHAR"
+#define TYPE_VOID "VOID"
+#define TYPE_BOOL "BOOL"
+#define TYPE_STRING "STRING"
+#define TYPE_FLOAT "FLOAT"
+#define TYPE_DOUBLE "DOUBLE"
+#define TYPE_ARRAY "[]"
 
 #define NUM_TYPES 9
 
@@ -29,7 +31,7 @@ using namespace std;
 
 struct SymbTbl_key{
     string lexeme;
-    vector<int> type;
+    vector<string> type;
     SymbTbl_key(string lex):lexeme(lex){}
     SymbTbl_key():lexeme(""){}
 };
@@ -37,12 +39,15 @@ struct SymbTbl_key{
 struct SymbTbl_entry{
     string category;
     string lexeme;
-    vector<int> type;
+    vector<string> type;
+    bool is_func;
     unsigned int lineno;
     int mod_flag;
     bool func_is_defined;
-    SymbTbl_entry(string cat, string lex, unsigned int l,int mod):category(cat), lexeme(lex), lineno(l), mod_flag(mod), func_is_defined(true) {}
-    SymbTbl_entry():category(""), lexeme(""), lineno(0), func_is_defined(true){}
+    SymbolTable* table;
+    SymbTbl_entry* obj_entry;
+    SymbTbl_entry(string cat, string lex, unsigned int l,int mod):category(cat), lexeme(lex), lineno(l), mod_flag(mod), func_is_defined(true), is_func(false){}
+    SymbTbl_entry():category(""), lexeme(""), lineno(0), func_is_defined(true), is_func(false){}
 };
 
 struct SymbolTable{
@@ -68,6 +73,7 @@ SymbolTable* create_symtbl();
 SymbTbl_entry* lookup(SymbTbl_key* key);
 int insert_symtbl(SymbTbl_key* key, SymbTbl_entry* entry);
 // void print_symtbl(SymbolTable* tbl);
+string get_type(string& dType, int dim);
 
 void printSymbolTable(SymbolTable* tbl);
 
