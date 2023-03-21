@@ -16,8 +16,8 @@
     extern FILE* yyin;
     extern SymbolTable* current;
 
-    int dType;
-    int retType;
+    string dType;
+    string retType;
     int mod_flag;
     bool* ptr_func_def = NULL;
     extern vector<SymbTbl_entry*> methKeys;
@@ -886,7 +886,7 @@ STMNT_EXPR: Assignment{
 
 Meth_invoc: ExpressionName '(' ARG_LIST ')'{
     vector<treeNode*> v;
-    insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
+    insertAttr(v, makeleaf("ID(" + $1->lexeme + ")"), "", 1);
     insertAttr(v, NULL, "(", 0);
     insertAttr(v, $3, "", 1);
     insertAttr(v, NULL, ")", 0);
@@ -895,7 +895,7 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
     /*type checking*/
     CREATE_ST_KEY(temp, $1->lexeme);
     if($3){
-        temp->type = $3->typevec;vec;
+        temp->type = $3->typevec;
     }
 }
 ;
@@ -915,7 +915,7 @@ Assignment: LeftHandSide AssignmentOperator Expr{
     insertAttr(v, $3, "", 1);
     $$ = makenode(*$2, v);
 
-    \\type checking
+    // type checking
     $$->type = $1->type;
 }
 ;
@@ -1022,10 +1022,11 @@ ExclusiveOrExpression:      AndExpression{$$ = $1;}
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
-    $$ = makenode("^", v);}
+    $$ = makenode("^", v);
 
     //type checking
     $$->type = onlyIntCheck($1->type, $3->type, "^");
+}
 ;
 
 AndExpression:              EqualityExpression{$$ = $1;}
@@ -1256,7 +1257,7 @@ CastExpression:             '(' DTYPE ')' UnaryExpression{
 
     //type checking
     if($4->type == TYPE_STRING && $2->type != TYPE_STRING){
-        yyerror("Cannot cast from String to " + to_string($2->type));
+        yyerror("Cannot cast from String to " + $2->type);
     }
     else $$->type = $2->type;
 }
@@ -1265,7 +1266,7 @@ PostfixExpression:              Primary{
     $$ = $1;
 }
 |                               ExpressionName{
-    $$ = makeleaf("ID(" + *$1 + ")");
+    $$ = makeleaf("ID(" + $1->lexeme + ")");
     $$ = $1;
 }
 |                               PostIncrementExpression{
@@ -1291,7 +1292,7 @@ FieldAccess:    Primary '.' ID{
         CREATE_ST_KEY(temp, *$3);   
         SymbTbl_entry* entry = lookup(temp);
         if(entry){
-            $$->type = entry->type;
+            $$->type = entry->type[0];
         }
         else{
             yyerror("Field " + *$3 + " not found");
@@ -1381,7 +1382,7 @@ DimExpr:    '[' Expr ']'{
     $$ = makenode("Dimensional Expression", v);
 
     //type checking
-    if(onlyIntCheck($2->type) == -1){
+    if(onlyIntCheck($2->type) == TYPE_ERROR){
         yyerror("Array index must be of type int");
     }
     $$->type = TYPE_ARRAY;
@@ -1395,7 +1396,7 @@ DimExpr:    '[' Expr ']'{
     $$ = makenode("Dimensional Expression", v);
 
     //type checking
-    if(onlyIntCheck($3->type) == -1){
+    if(onlyIntCheck($3->type) == TYPE_ERROR){
         yyerror("Array index must be of type int");
     }
     $$->type = $1->type + TYPE_ARRAY;
@@ -1404,7 +1405,7 @@ DimExpr:    '[' Expr ']'{
 
 ArrayAccess:    ExpressionName '[' Expr ']'{
     vector<treeNode*> v;
-    insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
+    insertAttr(v, makeleaf("ID(" + $1->lexeme + ")"), "", 1);
     insertAttr(v, makeleaf("["), "", 1);
     insertAttr(v, $3, "", 1);
     insertAttr(v, makeleaf("]"), "", 1);
@@ -1418,7 +1419,7 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         $$->type = $1->type.substr(0, $1->type.size()-2);
     }
     else{
-        yyerror("Cannot access array of type " + to_string($$->type));
+        yyerror("Cannot access array of type " + $$->type);
     }
 }
 |               PrimaryNoNewArray '[' Expr ']'{
@@ -1430,14 +1431,14 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
     $$ = makenode("ArrayAccess", v);
 
     /* type checking */
-    if(onlyIntCheck($3->type)==-1)){
+    if(onlyIntCheck($3->type)==TYPE_ERROR){
         yyerror("Array index must be of type int");
     }
     if($1->type.compare($1->type.size()-2, 2, TYPE_ARRAY)==0){
         $$->type = $1->type.substr(0, $1->type.size()-2);
     }
     else{
-        yyerror("Cannot access array of type " + to_string($$->type));
+        yyerror("Cannot access array of type " + $$->type);
     }
 
 }
@@ -1760,7 +1761,7 @@ Param_list: Param_list ',' Param{
 
     // sematics
     CREATE_ST_ENTRY(temp_entry,"ID", $3->lexeme, yylineno, mod_flag);
-    temp_entry->type.push_back(get_type($3->dim, dType));
+    temp_entry->type.push_back(get_type(dType, $1->dim));
     
     methKeys.push_back(temp_entry);
 }
@@ -1769,7 +1770,7 @@ Param_list: Param_list ',' Param{
 
     // sematics
     CREATE_ST_ENTRY(temp_entry,"ID", $1->lexeme, yylineno, mod_flag);
-    temp_entry->type.push_back(get_type($1->dim, dType));
+    temp_entry->type.push_back(get_type(dType, $1->dim));
         
     methKeys.push_back(temp_entry);
 }

@@ -34,6 +34,7 @@ string relCheck(string type1, string type2){
     if(isNum(type1) && isNum(type2))
         return TYPE_BOOL;
     yyerror("TypeError: Relational operator can only be applied to numeric types");
+    return "";
 }
 
 string onlyIntCheck(string type){
@@ -46,6 +47,7 @@ string onlyIntCheck(string type1, string type2, string op){
     if(onlyIntCheck(type1)!=TYPE_ERROR && onlyIntCheck(type2)!=TYPE_ERROR)
         return maxType(type1, type2);
     yyerror("TypeError: Invalid operand types for operator "+op);
+    return "";
 }
 
 int isNum(string type){

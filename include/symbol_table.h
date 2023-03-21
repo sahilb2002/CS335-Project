@@ -28,6 +28,7 @@
 
 using namespace std;
 
+typedef struct SymbolTable SymbolTable;
 
 struct SymbTbl_key{
     string lexeme;

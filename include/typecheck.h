@@ -5,13 +5,13 @@
 #include <string>
 #include <map>
 
-int maxType(int type1, int type2);
-int addCheck(int type1, int type2);
-int multCheck(int type1, int type2);
-int relCheck(int type1, int type2);
-int onlyIntCheck(int type);
-int onlyIntCheck(int type1, int type2, string op);
-int isNum(int type);
+string maxType(string type1, string type2);
+string addCheck(string type1, string type2);
+string multCheck(string type1, string type2);
+string relCheck(string type1, string type2);
+string onlyIntCheck(string type);
+string onlyIntCheck(string type1, string type2, string op);
+int isNum(string type);
 
 
 #endif
