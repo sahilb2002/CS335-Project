@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include "TAC.h"
 using namespace std;
 
 
@@ -12,6 +13,7 @@ typedef struct treeNode{
 	string lexeme;
 	int dim;
 	string type;
+	qel_t addr;
 	vector<string> typevec;
 	vector<treeNode*> children;
 }treeNode;

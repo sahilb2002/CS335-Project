@@ -38,14 +38,14 @@ class rec2 {
 
 	public int sum(int a, int b) {
 		int c =  two_times(a + b);
-		return sum(a,(a&&b));
+		return sum(a,(int)(a||b));
 		return c;
 	}
 	int three_times(){
 		;
 	}
 	public void main() {
-		rec1 io = new IO();
+		IO io = new IO();
 		rec1 obj1 = new rec1();
 		int a;
 		int b = a;
@@ -60,7 +60,7 @@ class rec2 {
 
 		// c =  j;
 		double arr[] = new double[10];
-		for(int i=0;i<10;i++){
+		for(int i=0;i<10;c=(i++)){
 			arr[0] = 1.0;
 		}
 		// arr = new int[10];

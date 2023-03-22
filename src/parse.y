@@ -5,6 +5,7 @@
     #include<AST.h>
     #include<symbol_table.h>
     #include<typecheck.h>
+    #include<TAC.h>
     #include<cstring>
     using namespace std;
 
@@ -15,6 +16,10 @@
     extern treeNode* root;
     extern FILE* yyin;
     extern SymbolTable* current;
+
+    // 3AC
+    int temp_addr = 0;
+    int instr_addr = 0;
 
     string dType;
     string retType;
@@ -1005,6 +1010,9 @@ Assignment: LeftHandSide AssignmentOperator Expr{
     else{
         yyerror("Type Mismatched cannot cast " + $3->type + " to " + $1->type);
     }
+
+    //3ac
+    emit("", $3->addr, "", $1->addr);
 }
 ;
 
@@ -1032,6 +1040,7 @@ ExpressionName:  AmbiguousName '.' ID{
             SymbTbl_entry* entry = it->second;
             if(entry->mod_flag == PUBLIC_FLAG){
                 $$->type = entry->type[0];
+                $$->addr = $$->lexeme;
             }
             else{
                 yyerror("Non-Public member " + *$3 + " of class " + $1->type + " cannot be accessed");
@@ -1057,6 +1066,7 @@ ExpressionName:  AmbiguousName '.' ID{
     SymbTbl_entry* entry = lookup(temp);
     if(entry && !entry->is_func){
         $$->type = entry->type[0];
+        $$->addr = *$1;
     }
     else{
         $$->type = TYPE_ERROR;
@@ -1112,6 +1122,7 @@ LeftHandSide:   ExpressionName{
     if($1->type == TYPE_ERROR){
         yyerror("Unidentified Symbol "+ $$->lexeme);
     }
+    $$->addr = $1->addr;
 }
 |               FieldAccess{$$ = $1;}
 |               ArrayAccess{$$ = $1;}
@@ -1142,6 +1153,10 @@ ConditionalOrExpression:    ConditionalAndExpression{$$ = $1;}
 
     //type checking
     $$->type = relCheck($1->type, $3->type);
+
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit("||", $1->addr, $3->addr, $$->addr);
 }
 ;
 
@@ -1154,6 +1169,11 @@ ConditionalAndExpression:   InclusiveOrExpression{$$ = $1;}
 
     //type checking
     $$->type = relCheck($1->type, $3->type);
+
+    // 3ac
+    $$->addr = get_temp($$->type);
+    emit("&&", $1->addr, $3->addr, $$->addr);
+
 }
 ;
 
@@ -1166,6 +1186,10 @@ InclusiveOrExpression:      ExclusiveOrExpression{$$ = $1;}
 
     //type checking
     $$->type = onlyIntCheck($1->type, $3->type, "|");
+
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit("|", $1->addr, $3->addr, $$->addr);
 }
 ;
 
@@ -1178,6 +1202,10 @@ ExclusiveOrExpression:      AndExpression{$$ = $1;}
 
     //type checking
     $$->type = onlyIntCheck($1->type, $3->type, "^");
+
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit("^", $1->addr, $3->addr, $$->addr);
 }
 ;
 
@@ -1190,6 +1218,10 @@ AndExpression:              EqualityExpression{$$ = $1;}
 
     //type checking
     $$->type = onlyIntCheck($1->type, $3->type,"&" );
+    
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit("&", $1->addr, $3->addr, $$->addr);
 }
 ;
 
@@ -1202,6 +1234,10 @@ EqualityExpression:         RelationalExpression{$$ = $1;}
     
     //type checking
     $$->type = relCheck($1->type, $3->type);
+
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit("==", $1->addr, $3->addr, $$->addr);
 }
 |                           EqualityExpression NOT_EQUAL RelationalExpression{
     vector<treeNode*> v;
@@ -1211,6 +1247,10 @@ EqualityExpression:         RelationalExpression{$$ = $1;}
 
     //type checking
     $$->type = relCheck($1->type, $3->type);
+
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit("!=", $1->addr, $3->addr, $$->addr);    
 }
 ;
 
@@ -1223,6 +1263,10 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
 
     //type checking
     $$->type = relCheck($1->type, $3->type);
+
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit("<", $1->addr, $3->addr, $$->addr);
 }
 |                           RelationalExpression '>' ShiftExpression{
     vector<treeNode*> v;
@@ -1232,6 +1276,10 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
 
     //type checking
     $$->type = relCheck($1->type, $3->type);
+
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit(">", $1->addr, $3->addr, $$->addr);
 }
 |                           RelationalExpression GTR_EQUAL ShiftExpression{
     vector<treeNode*> v;
@@ -1241,6 +1289,10 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
 
     //type checking
     $$->type = relCheck($1->type, $3->type);
+
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit(">=", $1->addr, $3->addr, $$->addr);
 }
 |                           RelationalExpression LESS_EQUAL ShiftExpression{
     vector<treeNode*> v;
@@ -1250,6 +1302,10 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
 
     //type checking
     $$->type = relCheck($1->type, $3->type);
+
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit("<=", $1->addr, $3->addr, $$->addr);
 }
 ;
 
@@ -1262,6 +1318,10 @@ ShiftExpression:            AdditiveExpression{$$ = $1;}
 
     //type checking
     $$->type = onlyIntCheck($1->type, $3->type, "<<");
+
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit("<<", $1->addr, $3->addr, $$->addr);
 }
 |                           ShiftExpression RIGHT_SHIFT AdditiveExpression{
     vector<treeNode*> v;
@@ -1271,6 +1331,10 @@ ShiftExpression:            AdditiveExpression{$$ = $1;}
 
     //type checking
     $$->type = onlyIntCheck($1->type, $3->type, ">>");
+
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit(">>", $1->addr, $3->addr, $$->addr);
 }
 |                           ShiftExpression SIGN_SHIFT AdditiveExpression{
     vector<treeNode*> v;
@@ -1280,6 +1344,10 @@ ShiftExpression:            AdditiveExpression{$$ = $1;}
 
     //type checking
     $$->type = onlyIntCheck($1->type, $3->type, ">>>");
+    
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit(">>>", $1->addr, $3->addr, $$->addr);
 }
 ;
 
@@ -1292,6 +1360,10 @@ AdditiveExpression:         MultiplicativeExpression{$$ = $1;}
 
     //typeChecking
     $$->type = addCheck($1->type, $3->type,"+");
+
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit("+", $1->addr, $3->addr, $$->addr);
 }
 |                           AdditiveExpression '-' MultiplicativeExpression{
     vector<treeNode*> v;
@@ -1301,6 +1373,10 @@ AdditiveExpression:         MultiplicativeExpression{$$ = $1;}
 
     //typeChecking
     $$->type = addCheck($1->type, $3->type,"-");
+
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit("-", $1->addr, $3->addr, $$->addr);
 }
 ;
 
@@ -1313,6 +1389,10 @@ MultiplicativeExpression:   UnaryExpression{$$ = $1;}
 
     //typeChecking
     $$->type = multCheck($1->type, $3->type,"*");
+
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit("*", $1->addr, $3->addr, $$->addr);
 }
 |                           MultiplicativeExpression '/' UnaryExpression{
     vector<treeNode*> v;
@@ -1322,6 +1402,10 @@ MultiplicativeExpression:   UnaryExpression{$$ = $1;}
 
     //typeChecking
     $$->type = multCheck($1->type, $3->type,"/");
+
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit("/", $1->addr, $3->addr, $$->addr);
 }
 |                           MultiplicativeExpression '%' UnaryExpression{
     vector<treeNode*> v;
@@ -1331,6 +1415,10 @@ MultiplicativeExpression:   UnaryExpression{$$ = $1;}
 
     //typeChecking
     $$->type = onlyIntCheck($1->type, $3->type, "%");
+    
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit("%", $1->addr, $3->addr, $$->addr);
 }
 ;
 
@@ -1343,6 +1431,10 @@ UnaryExpression:            PreIncrementExpression{$$ = $1;}
 
     //type checking
     $$->type = $2->type;
+
+    //3ac
+    $$->addr = $2->addr;
+    emit("+", $2->addr, "", $$->addr);
 }
 |                           '-' UnaryExpression{
     vector<treeNode*> v;
@@ -1351,6 +1443,10 @@ UnaryExpression:            PreIncrementExpression{$$ = $1;}
 
     //type checking
     $$->type = $2->type;
+
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit("-", $2->addr, "", $$->addr);
 }
 |                           UnaryExpressionNotPlusMinus{$$ = $1;}
 ;
@@ -1361,7 +1457,18 @@ PreIncrementExpression:     INCREMENT UnaryExpression{
     $$ = makenode("++", v);
 
     //type checking
-    $$->type = $2->type;
+    if(isNum($2->type)){
+        $$->type = $2->type;
+
+    }
+    else{
+        yyerror("Cannot increment non-numeric type");
+    }
+
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit("+", $2->addr, "1", $2->addr);
+    emit("", $2->addr, "", $$->addr);
 }
 ;
 
@@ -1371,7 +1478,18 @@ PreDecrementExpression:     DECREMENT UnaryExpression{
     $$ = makenode("--", v);
 
     //type checking
-    $$->type = $2->type;
+    if(isNum($2->type)){
+        $$->type = $2->type;
+
+    }
+    else{
+        yyerror("Cannot decrement non-numeric type");
+    }
+
+    //3ac
+    $$->addr = get_temp($$->type);
+    emit("-", $2->addr, "1", $2->addr);
+    emit("", $2->addr, "", $$->addr);
 }
 ;
 
@@ -1385,6 +1503,9 @@ UnaryExpressionNotPlusMinus:    PostfixExpression{
 
     //type checking
     $$->type = $2->type;
+
+    $$->addr = get_temp($$->type);
+    emit("~", $2->addr, "", $$->addr);
 }
 |                               '!' UnaryExpression{
     vector<treeNode*> v;
@@ -1393,6 +1514,10 @@ UnaryExpressionNotPlusMinus:    PostfixExpression{
 
     //type checking
     $$->type = $2->type;
+    
+    // 3ac
+    $$->addr = get_temp($$->type);
+    emit("!", $2->addr, "", $$->addr);
 }
 |   CastExpression {
     $$ = $1;
@@ -1408,10 +1533,22 @@ CastExpression:             '(' DTYPE ')' UnaryExpression{
     $$ = makenode("CastExpression", v);
 
     //type checking
-    if($4->type == TYPE_STRING && $2->type != TYPE_STRING){
-        yyerror("Cannot cast from String to " + $2->type);
+    if(can_be_TypeCasted($2->type, $4->type)){
+        $$->type = $2->type;
     }
-    else $$->type = $2->type;
+    else{
+        $$->type = TYPE_ERROR;
+        yyerror("Cannot cast " + $4->type + " to " + $2->type);
+    }
+
+    //3ac
+    if($2->type!= $4->type){
+        $$->addr = get_temp($2->type);
+        emit($4->type + "TO" + $2->type , $4->addr, "", $$->addr);
+    }
+    else{
+        $$->addr = $4->addr;
+    }
 }
 
 PostfixExpression:              Primary{
@@ -1495,6 +1632,7 @@ PrimaryNoNewArray:  LIT{
 
     //type checking
     $$->type = $2->type;
+    $$->addr = $2->addr;
 }
 |                   ArrayAccess{$$ = $1;}
 |                   Meth_invoc{$$ = $1;}
@@ -1646,6 +1784,21 @@ PostIncrementExpression:        PostfixExpression INCREMENT{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     $$ = makenode("++", v);
+    
+    //type checking
+    if(isNum($1->type)){
+        $$->type = $1->type;
+
+    }
+    else{
+        yyerror("Cannot increment non-numeric type");
+    }
+
+    //3ac
+    $$->addr = get_temp($1->type);
+    emit("", $1->addr, "", $$->addr);
+    emit("+", $1->addr, "1", $1->addr);
+
 }
 ;
 
@@ -1653,6 +1806,20 @@ PostDecrementExpression:        PostfixExpression DECREMENT {
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     $$ = makenode("--", v);
+    
+    //type checking
+    if(isNum($1->type)){
+        $$->type = $1->type;
+
+    }
+    else{
+        yyerror("Cannot decrement non-numeric type");
+    }
+
+    //3ac
+    $$->addr = get_temp($1->type);
+    emit("", $1->addr, "", $$->addr);
+    emit("-", $1->addr, "1", $1->addr);
 }
 ;
 
@@ -1695,11 +1862,17 @@ LIT:    INT{
     string s = "INT(" + *$1 + ")";
     $$ = makeleaf(s);
     $$->type = TYPE_INT;
+
+    //3ac
+    $$->addr = *$1;
 }
 |       FLOAT{
     string s = "FLOAT(" + *$1 + ")";
     $$ = makeleaf(s);
     $$->type = TYPE_FLOAT;
+
+    //3ac
+    $$->addr = *$1;
 }
 |       CHAR{
     string temp = *$1;
@@ -1708,6 +1881,9 @@ LIT:    INT{
     string s = "CHAR(" + temp + ")";
     $$ = makeleaf(s);
     $$->type = TYPE_CHAR;
+
+    //3ac
+    $$->addr = *$1;
 }
 |       STRING{
     string temp = *$1;
@@ -1716,21 +1892,27 @@ LIT:    INT{
     string s = "STRING(" + temp + ")";
     $$ = makeleaf(s);
     $$->type = TYPE_STRING;
+
+    //3ac
+    $$->addr = *$1;
 }
 |       BOOL{
     string s = "BOOL(" + *$1 + ")";
     $$ = makeleaf(s);
     $$->type = TYPE_BOOL;
+    $$->addr = *$1;
 }
 |       LONG{
     string s = "LONG(" + *$1 + ")";
     $$ = makeleaf(s);
     $$->type = TYPE_LONG;
+    $$->addr = *$1;
 }
 |       DOUBLE{
     string s = "DOUBLE(" + *$1 + ")";
     $$ = makeleaf(s);
     $$->type = TYPE_DOUBLE;
+    $$->addr = *$1;
 }
 ;
 
@@ -1974,6 +2156,8 @@ Param_list: Param_list ',' Param{
     temp_entry->type.push_back(get_type(dType, $1->dim));
         
     methKeys.push_back(temp_entry);
+
+    
 }
 ;
 
@@ -2188,6 +2372,7 @@ int main(int argc, char** argv) {
     } while (!feof(yyin));
     endAST();
     printSymbolTable(current);
+    print_code();
     if(verbose){
         cout<<"Parsing Complete"<<endl;
         cout<<"Output written to "<<outfile<<endl;
