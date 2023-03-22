@@ -577,17 +577,17 @@ DEF_VAR: STAT DTYPE VAR_LIST{
     insertAttr(v, $3, "", 1);
     $$ = makenode("DEF_VAR", v);
 }
-|       KEY_STATIC ID VAR_LIST{
+|       KEY_STATIC ID{CREATE_ST_KEY(temp, *$2); temp->type.push_back(TYPE_CLASS); if(lookup(temp)){dType = *$2;} else {yyerror(*$2 + "doesn't name a type");} } VAR_LIST{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("static"),"",1);
     insertAttr(v,makeleaf("ID(" + *$2 + ")"), "", 1 );
-    insertAttr(v, $3, "", 1);
+    insertAttr(v, $4, "", 1);
     $$ = makenode("DEF_VAR", v);
 }
-|        ID VAR_LIST{
+|        ID{CREATE_ST_KEY(temp, *$1); temp->type.push_back(TYPE_CLASS); if(lookup(temp)){dType = *$1;} else {yyerror(*$1 + "doesn't name a type");} } VAR_LIST{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
-    insertAttr(v, $2, "", 1);
+    insertAttr(v, $3, "", 1);
     $$ = makenode("DEF_VAR", v);
 }
 ;
@@ -893,9 +893,47 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
     $$ = makenode("Meth_invoc", v);
 
     /*type checking*/
-    CREATE_ST_KEY(temp, $1->lexeme);
-    if($3){
-        temp->type = $3->typevec;
+    if($1->typevec.size()==0){
+        // ExpressionName is just ID.
+        CREATE_ST_KEY(temp, $1->lexeme);
+        if($3){
+            temp->type = $3->typevec;
+        }
+        SymbTbl_entry* entry = lookup(temp);
+        if(entry){
+            $$->type = *(entry->type.rbegin());
+        }
+        else{
+            yyerror("method" + $1->lexeme + "not found");
+        }
+    }
+    else{
+        // ExpressionName is ID.ID.ID...
+        CREATE_ST_KEY(temp, $1->typevec[0]);
+        temp->type.push_back(TYPE_CLASS);
+        SymbTbl_entry* entry = lookup(temp);
+        if(entry){
+            SymbolTable* classTable = entry->table;
+            CREATE_ST_KEY(classTemp, $1->typevec[1]);
+            classTemp->type = $3->typevec;
+            auto it = classTable->table.find(*classTemp);
+            if(it != classTable->table.end()){
+                SymbTbl_entry* entry = it->second;
+                if(entry->mod_flag == PUBLIC_FLAG){
+                    $$->type = *(entry->type.rbegin());
+                }
+                else{
+                    yyerror("Non-Public member " + $1->typevec[1] + " of class " + $1->typevec[0] + " cannot be accessed");
+                }
+            }
+            else {
+                yyerror("No method " + $1->typevec[1] + " found in class " + $1->typevec[0]);
+
+            }
+        }
+        else{
+            yyerror("No class " + $1->type + " found");
+        }
     }
 }
 ;
@@ -916,7 +954,12 @@ Assignment: LeftHandSide AssignmentOperator Expr{
     $$ = makenode(*$2, v);
 
     // type checking
-    $$->type = $1->type;
+    if($1->type != $3->type){
+        yyerror("Type mismatch in assignment");
+    }
+    else{
+        $$->type = $1->type;
+    }
 }
 ;
 
@@ -929,10 +972,41 @@ AssignmentOperator: ASSIGN_OP{
 ;
 
 ExpressionName:  AmbiguousName '.' ID{
+    $$ = new treeNode;
     $$->lexeme = $1->lexeme + "." + *$3;
+
+    // semantics
+    CREATE_ST_KEY(temp, $1->type);
+    temp->type.push_back(TYPE_CLASS);
+    SymbTbl_entry* entry = lookup(temp);
+    if(entry){
+        SymbolTable* classTable = entry->table;
+        CREATE_ST_KEY(classTemp, *$3);
+        auto it = classTable->table.find(*classTemp);
+        if(it != classTable->table.end() && !it->second->is_func){
+            SymbTbl_entry* entry = it->second;
+            if(entry->mod_flag == PUBLIC_FLAG){
+                $$->type = entry->type[0];
+            }
+            else{
+                yyerror("Non-Public member " + *$3 + " of class " + $1->type + " cannot be accessed");
+            }
+        }
+        else {
+            $$->typevec.push_back($1->type);
+            $$->typevec.push_back(*$3);
+            $$->type = TYPE_ERROR;
+
+        }
+    }
+    else{
+        yyerror("No class " + $1->type + " found");
+    } 
+
 
 }
 |                ID {
+    $$ = new treeNode;
     $$->lexeme = *$1;
     CREATE_ST_KEY(temp, *$1);
     SymbTbl_entry* entry = lookup(temp);
@@ -945,10 +1019,44 @@ ExpressionName:  AmbiguousName '.' ID{
 }
 ;
 AmbiguousName:  ID  {
+    $$ = new treeNode;
     $$->lexeme = *$1;
+    CREATE_ST_KEY(temp, *$1);
+    SymbTbl_entry* entry = lookup(temp);
+    if(entry)$$->type = entry->type[0];
+    else{
+        yyerror("undeclared variable " + *$1 );
+    } 
 }
 |               AmbiguousName '.' ID{
+    $$ = new treeNode;
     $$->lexeme = $1->lexeme + "." + *$3;
+
+    // semantics
+    CREATE_ST_KEY(temp, $1->type);
+    temp->type.push_back(TYPE_CLASS);
+    SymbTbl_entry* entry = lookup(temp);
+    if(entry){
+        SymbolTable* classTable = entry->table;
+        CREATE_ST_KEY(classTemp, *$3);
+        auto it = classTable->table.find(*classTemp);
+        if(it != classTable->table.end()){
+            SymbTbl_entry* entry = it->second;
+            // SymbTbl_entry* entry;
+            if(entry->mod_flag == PUBLIC_FLAG){
+                $$->type = entry->type[0];
+            }
+            else{
+                yyerror("Non-Public member " + *$3 + " of class " + $1->type + " cannot be accessed");
+            }
+        }
+        else {
+            yyerror("No member " + *$3 + " in class " + $1->type);
+        }
+    }
+    else{
+        yyerror("No class " + $1->type + " found");
+    } 
 }
 ;
 
@@ -962,7 +1070,6 @@ LeftHandSide:   ExpressionName{
 }
 |               FieldAccess{$$ = $1;}
 |               ArrayAccess{$$ = $1;}
-/* |               VAR */
 ;
 
 ConditionalExpression:  ConditionalOrExpression{$$ = $1;}
@@ -1267,6 +1374,9 @@ PostfixExpression:              Primary{
 }
 |                               ExpressionName{
     $$ = makeleaf("ID(" + $1->lexeme + ")");
+    if($1->type == TYPE_ERROR){
+        yyerror("Undeclared variable " + $1->lexeme);
+    }
     $$ = $1;
 }
 |                               PostIncrementExpression{
@@ -1285,19 +1395,29 @@ FieldAccess:    Primary '.' ID{
     $$ = makenode("FieldAccess", v);
 
     /*type checking*/
-    if($1->type != TYPE_CLASS){
-        yyerror("Cannot access field of non-class type");
+    CREATE_ST_KEY(temp, $1->type);
+    temp->type.push_back(TYPE_CLASS);
+    SymbTbl_entry* entry = lookup(temp);
+    if(entry){
+        SymbolTable* classTable = entry->table;
+        CREATE_ST_KEY(classTemp, *$3);
+        auto it = classTable->table.find(*classTemp);
+        if(it != classTable->table.end()){
+            SymbTbl_entry* entry = it->second;
+            if(entry->mod_flag == PUBLIC_FLAG){
+                $$->type = entry->type[0];
+            }
+            else{
+                yyerror("Non-Public member " + *$3 + " of class " + $1->type + " cannot be accessed");
+            }
+        }
+        else {
+            yyerror("No member " + *$3 + " in class " + $1->type);
+        }
     }
     else{
-        CREATE_ST_KEY(temp, *$3);   
-        SymbTbl_entry* entry = lookup(temp);
-        if(entry){
-            $$->type = entry->type[0];
-        }
-        else{
-            yyerror("Field " + *$3 + " not found");
-        }
-    }
+        yyerror("No class " + $1->type + " found");
+    } 
 }
 |               KEY_SUPER '.' ID{
     vector<treeNode*> v;
@@ -1352,6 +1472,34 @@ PrimaryNoNewArray:  LIT{
     insertAttr(v, $4, "", 1);
     insertAttr(v, NULL, ")", 0);
     $$ = makenode("PrimaryNoNewArray", v);
+
+    // semantics
+    CREATE_ST_KEY(temp, *$2);
+    temp->type.push_back(TYPE_CLASS);
+    SymbTbl_entry* entry = lookup(temp);
+    if(entry){
+        SymbolTable* classTable = entry->table;
+        CREATE_ST_KEY(classTemp, *$2);
+        if($4)
+            classTemp->type = $4->typevec;
+        auto it = classTable->table.find(*classTemp);
+        if(it != classTable->table.end()){
+            SymbTbl_entry* entry = it->second;
+            $$->type = *$2;
+        }
+        else {
+            if(!$4){
+                // give a default constructor
+                $$->type = *$2;
+            }
+            else{
+                yyerror("No constructor found for class " + *$2);
+            }
+        }
+    }
+    else{
+        yyerror("No class " + *$2 + " found");
+    } 
 }
 ;
 
@@ -1371,6 +1519,17 @@ ArrayCreationExpr:  KEY_NEW DTYPE DimExpr{
     insertAttr(v, makeleaf("ID(" + *$2 + ")"), "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("ArrayCreationExpr", v);
+
+    //type checking
+    CREATE_ST_KEY(temp, *$2);
+    temp->type.push_back(TYPE_CLASS);
+    SymbTbl_entry* entry = lookup(temp);
+    if(entry){
+        $$->type = *$2 + $3->type;
+    }
+    else{
+        yyerror("No class " + *$2 + " found");
+    }
 }
 ;
 
@@ -1475,8 +1634,9 @@ ARG_LISTp:   ARG_LISTp ',' Expr{
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("Argument List", v);
-
+    free($$);
     // type checking
+    $$ = $1;
     $$->typevec.push_back($3->type);
 }
 |           Expr{
@@ -1739,9 +1899,9 @@ Meth_decl:  ID '('{retType = dType;} Param_list ')'{
 
     //sematics
     CREATE_ST_KEY(temp, *$1);
-    temp->type.push_back(dType);
+    // temp->type.push_back(dType);
     CREATE_ST_ENTRY(temp_entry, "ID", *$1, yylineno, mod_flag);
-    temp_entry->type = temp->type;
+    temp_entry->type.push_back(dType);
     ptr_func_def = &(temp_entry->func_is_defined);
     if(insert_symtbl(temp, temp_entry) == ALREADY_EXIST){
         SymbTbl_entry* __temp = lookup(temp);

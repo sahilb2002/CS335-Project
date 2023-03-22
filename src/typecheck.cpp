@@ -7,6 +7,8 @@ using namespace std;
 extern void yyerror(string s);
 
 string maxType(string type1, string type2){
+    if(type1 == TYPE_ERROR || type2 == TYPE_ERROR)
+        return TYPE_ERROR;
     if(type1 == TYPE_DOUBLE || type2 == TYPE_DOUBLE)
         return TYPE_DOUBLE;
     else if(type1 == TYPE_FLOAT || type2 == TYPE_FLOAT)

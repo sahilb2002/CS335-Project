@@ -6,14 +6,18 @@ SymbolTable *current = new SymbolTable(0, NULL);
 vector<SymbTbl_entry*> methKeys;
 int tbl_id = 0;
 
-bool operator <(const SymbTbl_key& a, const SymbTbl_key& b){
+// bool operator < (const string &a, const string &b){
+//     return a.compare(b) < 0;
+// }
+
+bool operator<(const SymbTbl_key& a, const SymbTbl_key& b) { 
     if(a.lexeme != b.lexeme)
         return a.lexeme < b.lexeme;
     if(a.type.size() != b.type.size())
         return a.type.size() < b.type.size();
     for(int i=0; i<a.type.size(); i++){
         if(a.type[i]!=b.type[i])
-            return a.type[i]<b.type[i];
+            return a.type[i] < b.type[i];
     }
     return false;
 }

@@ -78,4 +78,6 @@ string get_type(string& dType, int dim);
 
 void printSymbolTable(SymbolTable* tbl);
 
+bool operator<(const SymbTbl_key& a, const SymbTbl_key& b);
+
 #endif
