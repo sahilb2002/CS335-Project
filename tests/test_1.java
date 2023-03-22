@@ -38,14 +38,14 @@ class rec2 {
 
 	public int sum(int a, int b) {
 		int c =  two_times(a + b);
-		return sum(a,(int)(a&&b));
+		return sum(a,(a&&b));
 		return c;
 	}
 	int three_times(){
 		;
 	}
 	public void main() {
-		IO io = new IO();
+		rec1 io = new IO();
 		rec1 obj1 = new rec1();
 		int a;
 		int b = a;

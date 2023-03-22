@@ -101,7 +101,7 @@
 
 %type<str> Imp_list AssignmentOperator 
 %type<ptr> START ImportDecl_list AmbiguousName ExpressionName ClassDeclaration_list CastExpression ClassDeclaration ImportDecl BLCK_STMNT
-%type<ptr> PrimaryNoNewArray BODY BLCK STMNT_without_sub  Assert_stmnt STMNT STMNT_noshortif ConstructorDeclaration
+%type<ptr> PrimaryNoNewArray BODY BLCK STMNT_without_sub  Assert_stmnt STMNT STMNT_noshortif ConstructorDeclaration ConstructorHead
 %type<ptr> WHILE_STMNT WHILE_STMNT_noshortif BASIC_FOR BASIC_FOR_noshortif FOR_UPDATE FOR_INIT
 %type<ptr> STMNT_EXPR_list IF_THEN IF_THEN_ELSE IF_THEN_ELSE_noshortif DEF_VAR VAR_LIST VARA VAR
 %type<ptr> STMNT_EXPR Meth_invoc Expr AssignmentExpression Assignment LeftHandSide ConditionalAndExpression
@@ -219,6 +219,10 @@ STMNT_without_sub:  BLCK{
     insertAttr(v, makeleaf("return"), "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("STMNT_without_sub", v);
+
+    // semantics
+    if(!can_be_TypeCasted($2->type, retType))
+        yyerror("Invalid Return Type, expected " + retType );
 }
 |                   KEY_CONTINUE ';'{
     $$ = makeleaf("continue");
@@ -664,7 +668,11 @@ VARA:   ID '=' Expr{
 
     $$->lexeme = *$1;
     $$->dim = 0;
+
     // sematics
+    if(!can_be_TypeCasted($3->type, dType)){
+        yyerror("Type Mismatch " + $3->type + " cannot be typecasted to " + dType);
+    }
 
 }
 |       ID '[' EMP_EXPR ']' '=' Array_init_1D{
@@ -682,6 +690,9 @@ VARA:   ID '=' Expr{
     $$->lexeme = *$1;
     $$->dim = 1;
     // sematics
+    if(!can_be_TypeCasted($6->type, dType + TYPE_ARRAY)){
+        yyerror("Type Mismatch " + $6->type + " cannot be typecasted to " + dType + TYPE_ARRAY);
+    }
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' Array_init_2D{
     vector<treeNode*> v;
@@ -701,6 +712,9 @@ VARA:   ID '=' Expr{
     $$->lexeme = *$1;
     $$->dim = 2;
     // sematics
+    if(!can_be_TypeCasted($9->type, dType + TYPE_ARRAY + TYPE_ARRAY)){
+        yyerror("Type Mismatch " + $9->type + " cannot be typecasted to " + dType + TYPE_ARRAY + TYPE_ARRAY);
+    }
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' Array_init_3D{
     vector<treeNode*> v;
@@ -723,6 +737,9 @@ VARA:   ID '=' Expr{
     $$->lexeme = *$1;
     $$->dim = 3;
     // sematics
+    if(!can_be_TypeCasted($12->type, dType + TYPE_ARRAY + TYPE_ARRAY + TYPE_ARRAY)){
+        yyerror("Type Mismatch " + $12->type + " cannot be typecasted to " + dType + TYPE_ARRAY + TYPE_ARRAY + TYPE_ARRAY);
+    }
 
 }
 ;
@@ -738,6 +755,7 @@ Array_init_1D: L1D{
     insertAttr(v, $4, "", 1);
     insertAttr(v, NULL, "]", 0);
     $$ = makenode("Array-1D", v);
+    $$->type = dType + TYPE_ARRAY;
 }
 ;
 Array_init_2D: L2D{
@@ -754,6 +772,8 @@ Array_init_2D: L2D{
     insertAttr(v, $7, "", 1);
     insertAttr(v, NULL, "]", 0);
     $$ = makenode("Array-2D", v);
+
+    $$->type = dType + TYPE_ARRAY + TYPE_ARRAY;
 }
 ;
 Array_init_3D: L3D{
@@ -773,6 +793,8 @@ Array_init_3D: L3D{
     insertAttr(v, $10, "", 1);
     insertAttr(v, NULL, "]", 0);
     $$ = makenode("Array-3D", v);
+
+    $$->type = dType + TYPE_ARRAY + TYPE_ARRAY + TYPE_ARRAY;
 }
 ;
 
@@ -828,6 +850,7 @@ VAR:    ID{
 
 L3D:    '{' CONT3D '}'{
     $$ = $2;
+    $$->type = $2->type + TYPE_ARRAY;
 }
 ;
 CONT3D: CONT3D ',' L2D{
@@ -836,6 +859,12 @@ CONT3D: CONT3D ',' L2D{
     insertAttr(v, NULL, ",", 0);
     insertAttr(v, $3, "", 1);
     $$ = makenode("Array-3D", v);
+    if($1->type == $3->type){
+        $$->type = $1->type;
+    }
+    else{
+        yyerror("Type mismatch in array initialization list");
+    }
 }
 |       L2D{
     $$ = $1;
@@ -844,6 +873,7 @@ CONT3D: CONT3D ',' L2D{
 
 L2D:    '{' CONT2D '}'{
     $$ = $2;
+    $$->type = $2->type + TYPE_ARRAY;
 }
 ;
 CONT2D: CONT2D ',' L1D{
@@ -852,6 +882,12 @@ CONT2D: CONT2D ',' L1D{
     insertAttr(v, NULL, ",", 0);
     insertAttr(v, $3, "", 1);
     $$ = makenode("Array-2D", v);
+    if($1->type == $3->type){
+        $$->type = $1->type;
+    }
+    else{
+        yyerror("Type mismatch in array initialization list");
+    }
 }
 |       L1D{
     $$ = $1;
@@ -860,6 +896,7 @@ CONT2D: CONT2D ',' L1D{
 
 L1D: '{' CONT1D '}' {
     $$ = $2;
+    $$->type = $2->type + TYPE_ARRAY;
 } 
 ;
 CONT1D: CONT1D ',' Expr{
@@ -868,6 +905,13 @@ CONT1D: CONT1D ',' Expr{
     insertAttr(v, NULL, ",", 0);
     insertAttr(v, $3, "", 1);
     $$ = makenode("Array-1D", v);
+
+    if($1->type == $3->type){
+        $$->type = $1->type;
+    }
+    else{
+        yyerror("Type mismatch in array initialization list");
+    }
 }
 |       Expr{
     $$ = $1;
@@ -896,15 +940,19 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
     if($1->typevec.size()==0){
         // ExpressionName is just ID.
         CREATE_ST_KEY(temp, $1->lexeme);
-        if($3){
-            temp->type = $3->typevec;
-        }
+        // if($3){
+        //    temp->type = $3->typevec;
+        // }
+
         SymbTbl_entry* entry = lookup(temp);
         if(entry){
-            $$->type = *(entry->type.rbegin());
+            if(compareMethTypes(entry->type, $3->typevec))$$->type = *(entry->type.rbegin());
+            else{
+                yyerror("Invalid Argument Types for Method " + $1->lexeme);
+            }
         }
         else{
-            yyerror("method" + $1->lexeme + "not found");
+            yyerror("method " + $1->lexeme + " not found");
         }
     }
     else{
@@ -915,7 +963,6 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
         if(entry){
             SymbolTable* classTable = entry->table;
             CREATE_ST_KEY(classTemp, $1->typevec[1]);
-            classTemp->type = $3->typevec;
             auto it = classTable->table.find(*classTemp);
             if(it != classTable->table.end()){
                 SymbTbl_entry* entry = it->second;
@@ -954,11 +1001,9 @@ Assignment: LeftHandSide AssignmentOperator Expr{
     $$ = makenode(*$2, v);
 
     // type checking
-    if($1->type != $3->type){
-        yyerror("Type mismatch in assignment");
-    }
+    if(can_be_TypeCasted($1->type, $3->type))$$->type = $1->type;
     else{
-        $$->type = $1->type;
+        yyerror("Type Mismatched cannot cast " + $3->type + " to " + $1->type);
     }
 }
 ;
@@ -1246,7 +1291,7 @@ AdditiveExpression:         MultiplicativeExpression{$$ = $1;}
     $$ = makenode("+", v);
 
     //typeChecking
-    $$->type = addCheck($1->type, $3->type);
+    $$->type = addCheck($1->type, $3->type,"+");
 }
 |                           AdditiveExpression '-' MultiplicativeExpression{
     vector<treeNode*> v;
@@ -1255,7 +1300,7 @@ AdditiveExpression:         MultiplicativeExpression{$$ = $1;}
     $$ = makenode("-", v);
 
     //typeChecking
-    $$->type = addCheck($1->type, $3->type);
+    $$->type = addCheck($1->type, $3->type,"-");
 }
 ;
 
@@ -1267,7 +1312,7 @@ MultiplicativeExpression:   UnaryExpression{$$ = $1;}
     $$ = makenode("*", v);
 
     //typeChecking
-    $$->type = multCheck($1->type, $3->type);
+    $$->type = multCheck($1->type, $3->type,"*");
 }
 |                           MultiplicativeExpression '/' UnaryExpression{
     vector<treeNode*> v;
@@ -1276,7 +1321,7 @@ MultiplicativeExpression:   UnaryExpression{$$ = $1;}
     $$ = makenode("/", v);
 
     //typeChecking
-    $$->type = multCheck($1->type, $3->type);
+    $$->type = multCheck($1->type, $3->type,"/");
 }
 |                           MultiplicativeExpression '%' UnaryExpression{
     vector<treeNode*> v;
@@ -1454,16 +1499,6 @@ PrimaryNoNewArray:  LIT{
 |                   ArrayAccess{$$ = $1;}
 |                   Meth_invoc{$$ = $1;}
 |                   FieldAccess{$$ = $1;}
-/* |                   KEY_NEW ID '(' ARG_LIST ')' Class_body{
-    vector<treeNode*> v;
-    insertAttr(v, makeleaf("new"), "", 1);
-    insertAttr(v, makeleaf("ID(" + *$2 + ")"), "", 1);
-    insertAttr(v, NULL, "(", 0);
-    insertAttr(v, $4, "", 1);
-    insertAttr(v, NULL, ")", 0);
-    insertAttr(v, $6, "", 1);
-    $$ = makenode("PrimaryNoNewArray", v);
-} */
 |                   KEY_NEW ID '(' ARG_LIST ')'{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("new"), "", 1);
@@ -1480,15 +1515,17 @@ PrimaryNoNewArray:  LIT{
     if(entry){
         SymbolTable* classTable = entry->table;
         CREATE_ST_KEY(classTemp, *$2);
-        if($4)
-            classTemp->type = $4->typevec;
         auto it = classTable->table.find(*classTemp);
         if(it != classTable->table.end()){
             SymbTbl_entry* entry = it->second;
-            $$->type = *$2;
+            if(compareMethTypes(entry->type, $4->typevec))
+                $$->type = *$2;
+            else{
+                yyerror("Invalid argument list to contructor of class " + entry->lexeme);
+            }
         }
         else {
-            if(!$4){
+            if($4->typevec.size()==0){
                 // give a default constructor
                 $$->type = *$2;
             }
@@ -1496,10 +1533,12 @@ PrimaryNoNewArray:  LIT{
                 yyerror("No constructor found for class " + *$2);
             }
         }
+        free(classTemp);
     }
     else{
         yyerror("No class " + *$2 + " found");
     } 
+    free(temp);
 }
 ;
 
@@ -1620,12 +1659,15 @@ PostDecrementExpression:        PostfixExpression DECREMENT {
 
 
 EMP_EXPR:   Expr{$$ = $1;}
-| %empty{$$ = NULL;}
+| %empty{
+    $$ = new treeNode;
+    $$->type = TYPE_VOID;
+}
 ;
 
 ARG_LIST: ARG_LISTp {$$ = $1;}
 | %empty{
-    $$ = NULL;
+    $$ = new treeNode;
 }
 ;
 
@@ -1844,11 +1886,11 @@ Meth_Head:  DTYPE DIMS Meth_decl{
     insertAttr(v, $3, "", 1);
     $$ = makenode("Method Header", v);
 }
-|           KEY_VOID DIMS Meth_decl{
+|           KEY_VOID{dType = TYPE_VOID;} DIMS Meth_decl{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("void"), "", 1);
-    insertAttr(v, $2, "", 1);
     insertAttr(v, $3, "", 1);
+    insertAttr(v, $4, "", 1);
     $$ = makenode("Method Header", v);
 }
 |           DTYPE Meth_decl{
@@ -1857,13 +1899,14 @@ Meth_Head:  DTYPE DIMS Meth_decl{
     insertAttr(v, $2, "", 1);
     $$ = makenode("Method Header", v);
 }
-|           KEY_VOID Meth_decl{
+|           KEY_VOID{dType = TYPE_VOID;} Meth_decl{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("void"), "", 1);
-    insertAttr(v, $2, "", 1);
+    insertAttr(v, $3, "", 1);
     $$ = makenode("Method Header", v);
 }
 ;
+
 
 Meth_decl:  ID '('{retType = dType;} Param_list ')'{
     vector<treeNode*> v;
@@ -1875,11 +1918,10 @@ Meth_decl:  ID '('{retType = dType;} Param_list ')'{
 
     //sematics
     CREATE_ST_KEY(temp, *$1);
-    for(auto p:methKeys){
-        temp->type.push_back(p->type[0]);
-    }
     CREATE_ST_ENTRY(temp_entry, "ID", *$1, yylineno, mod_flag);
-    temp_entry->type = temp->type;
+    for(auto p:methKeys){
+        temp_entry->type.push_back(p->type[0]);
+    }
     temp_entry->type.push_back(retType);
     temp_entry->is_func = true;
     ptr_func_def = &(temp_entry->func_is_defined);
@@ -1891,7 +1933,7 @@ Meth_decl:  ID '('{retType = dType;} Param_list ')'{
         ptr_func_def = &(__temp->func_is_defined);
     }
 }
-|           ID '(' ')'{
+|           ID '('{retType = dType;} ')'{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, NULL, "( )", 0);
@@ -1899,7 +1941,6 @@ Meth_decl:  ID '('{retType = dType;} Param_list ')'{
 
     //sematics
     CREATE_ST_KEY(temp, *$1);
-    // temp->type.push_back(dType);
     CREATE_ST_ENTRY(temp_entry, "ID", *$1, yylineno, mod_flag);
     temp_entry->type.push_back(dType);
     ptr_func_def = &(temp_entry->func_is_defined);
@@ -1921,7 +1962,7 @@ Param_list: Param_list ',' Param{
 
     // sematics
     CREATE_ST_ENTRY(temp_entry,"ID", $3->lexeme, yylineno, mod_flag);
-    temp_entry->type.push_back(get_type(dType, $1->dim));
+    temp_entry->type.push_back(get_type(dType, $3->dim));
     
     methKeys.push_back(temp_entry);
 }
@@ -1994,23 +2035,80 @@ MOD :   KEY_PRIVATE{
 }
 ;
 
-ConstructorDeclaration : MOD_EMPTY_LIST ID '(' Param_list ')' BLCK{
+ConstructorHead:    MOD_EMPTY_LIST ID '('  Param_list ')'{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, makeleaf("ID(" + *$2 + ")"), "", 1);
     insertAttr(v, NULL, "(", 0);
     insertAttr(v, $4, "", 1);
     insertAttr(v, NULL, ")", 0);
-    insertAttr(v, $6, "", 1);
-    $$ = makenode("construtor", v);
+    $$ = makenode("construtorhead", v);
+
+    //sematics
+    CREATE_ST_KEY(temp, *$2);
+    temp->type.push_back(TYPE_CLASS);
+    SymbTbl_entry* temp_entry;
+    temp_entry = lookup(temp);
+    if(temp_entry->table == current && *$2 == temp_entry->lexeme){
+        // correct constructor declaration.
+        // create a new entry in the symbol table for class.
+        CREATE_ST_KEY(temp_construct, *$2);
+        CREATE_ST_ENTRY(temp_centry, "ID", *$2, yylineno, PUBLIC_FLAG);
+        temp_centry->is_func = true;
+        for(auto p:methKeys){
+            temp->type.push_back(p->type[0]);
+        }
+        temp->type.push_back(TYPE_NORET);
+        if(insert_symtbl(temp_construct, temp_centry)==ALREADY_EXIST){
+            yyerror("Constructor already declared in class " + *$2);
+        }
+        free(temp_construct);
+        
+    }
+    else{
+        yyerror("No return type for the function " + *$2 );
+    }
+    free(temp);
+    
+    
 }
-|                       MOD_EMPTY_LIST ID '(' ')' BLCK{
+|                   MOD_EMPTY_LIST ID '(' ')'{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, makeleaf("ID(" + *$2 + ")"), "", 1);
-    insertAttr(v, NULL, "( )", 0);
-    insertAttr(v, $5, "", 1);
+    $$ = makenode("construtorhead", v);
+
+    //sematics
+    CREATE_ST_KEY(temp, *$2);
+    temp->type.push_back(TYPE_CLASS);
+    SymbTbl_entry* temp_entry;
+    temp_entry = lookup(temp);
+    if(temp_entry->table == current && *$2 == temp_entry->lexeme){
+        // correct constructor declaration.
+        // create a new entry in the symbol table for class.
+        CREATE_ST_KEY(temp_construct, *$2);
+        CREATE_ST_ENTRY(temp_centry, "ID", *$2, yylineno, PUBLIC_FLAG);
+        temp_centry->is_func = true;
+        temp->type.push_back(TYPE_NORET);
+        if(insert_symtbl(temp_construct, temp_centry)==ALREADY_EXIST){
+            yyerror("Constructor already declared in class " + *$2);
+        }
+        free(temp_construct);
+    }
+    else{
+        yyerror("No return type for the function " + *$2 );
+    }
+    free(temp);
+    retType = TYPE_NORET;
+}
+;
+
+ConstructorDeclaration : ConstructorHead BLCK{
+    vector<treeNode*> v;
+    insertAttr(v, $1, "", 1);
+    insertAttr(v, $2, "", 1);
     $$ = makenode("construtor", v);
+
 }
 ;
 

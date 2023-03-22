@@ -6,3 +6,5 @@
 *.output
 *test.java
 *main
+*main.pdf
+*main.dot

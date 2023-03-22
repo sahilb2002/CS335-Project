@@ -1,6 +1,6 @@
 public class test{
     public static void main(String args[]){
-        System.out.println("Hello World");
+        // System.out.println("Hello World");
     }
     int test(){
         int arr[][] = {1,2,3},{a+b,d-9};//Need to insert 1D Array inside {...} to initialize 2D Array

@@ -68,23 +68,23 @@ public class MergeSort {
   
   // function to print the array
   public void printArray(int arr[]) {
-    int n = arr.length;
-    for (int i = 0; i < n; ++i)
-      System.out.print(arr[i] + " ");
-    System.out.println();
+    int n = 10;
+    for (int i = 0; i < n; ++i);
+      //System.out.print(arr[i] + " ");
+    // System.out.println();
   }
   
   // driver code
   public static void main(String args) {
     int arr[] = { 12, 11, 13, 5, 6, 7 };
     
-    System.out.println("Given Array");
-    int ob = new MergeSort();
+    //System.out.println("Given Array");
+    MergeSort ob = new MergeSort();
     ob.printArray(arr);
     
-    ob.mergeSort(arr, 0, arr.length - 1);
+    ob.mergeSort(arr, 0, 324 - 1);
     
-    System.out.println("Sorted array");
+    //System.out.println("Sorted array");
     ob.printArray(arr);
   }
 }

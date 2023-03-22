@@ -1,9 +1,11 @@
 import IO;
-
+class IO{
+	int a;
+}
 class nested_ifelse {
 	
 	public void main() {
-		int io =  new IO();
+		IO io =  new IO();
 		int a = 1;
 		int b = 2;
 		int c = 3;

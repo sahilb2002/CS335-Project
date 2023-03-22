@@ -19,6 +19,7 @@
 #define TYPE_FLOAT "FLOAT"
 #define TYPE_DOUBLE "DOUBLE"
 #define TYPE_ARRAY "[]"
+#define TYPE_NORET "NO_RETURN"
 
 #define NUM_TYPES 9
 
