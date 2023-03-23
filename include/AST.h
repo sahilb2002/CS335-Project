@@ -16,6 +16,10 @@ typedef struct treeNode{
 	qel_t addr;
 	vector<string> typevec;
 	vector<treeNode*> children;
+	vector<string> arr_dims;
+	int dims_count_1;
+	int dims_count_2;
+	int dims_count_3;
 }treeNode;
 
 void beginAST();

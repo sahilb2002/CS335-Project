@@ -14,7 +14,9 @@
 #define TYPE_LONG "LONG"
 #define TYPE_CHAR "CHAR"
 #define TYPE_VOID "VOID"
+
 #define TYPE_BOOL "BOOL"
+
 #define TYPE_STRING "STRING"
 #define TYPE_FLOAT "FLOAT"
 #define TYPE_DOUBLE "DOUBLE"
@@ -49,6 +51,7 @@ struct SymbTbl_entry{
     SymbolTable* table;
     SymbTbl_entry* obj_entry;
     string addr;
+    vector<string>arr_dims;
     SymbTbl_entry(string cat, string lex, unsigned int l,int mod):category(cat), lexeme(lex), lineno(l), mod_flag(mod), func_is_defined(true), is_func(false){}
     SymbTbl_entry():category(""), lexeme(""), lineno(0), func_is_defined(true), is_func(false){}
 };

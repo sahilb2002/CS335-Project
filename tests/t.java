@@ -1,14 +1,21 @@
 public class PM_Chutiya {
-    int a,b=2;
-    int arr[2];
-    char cjbhb;
-    int func(int a[][],int b, 
-    int c){
-        c=a+b;
-        return c;
-    }
+    // int a,b=2;
+    // int arr[2];
+    // char cjbhb;
+    // int func(int a[][],int b, 
+    // int c){
+    //     c=a+b;
+    //     return c;
+    // }
+    int arr[][][] = new int[2][3][4];
+    int i = 1;
+    int j = 2;
+    int k = 3;
+    int c = arr[i][j][k];
+
     // void main(){
     //     while(a<10){
+        
     //         int c;
     //         a=a+1;
     //     }

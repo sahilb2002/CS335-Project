@@ -6,6 +6,7 @@
     #include<symbol_table.h>
     #include<typecheck.h>
     #include<TAC.h>
+    #include<map>
     #include<cstring>
     using namespace std;
 
@@ -27,6 +28,19 @@
     bool* ptr_func_def = NULL;
     extern vector<SymbTbl_entry*> methKeys;
     int flag = 0;
+    int dims_count_1 = 0;
+    int dims_count_2 = 0;
+    int dims_count_3 = 0;
+    int arr_d = 0;
+
+    map<char, int> Size ={
+        {'I', 4},
+        {'F', 4},
+        {'D', 8},
+        {'L', 8},
+        {'C', 1}
+    };
+    
     FILE* dotfile;
 
     void yyerror(string s) {
@@ -611,6 +625,7 @@ VAR_LIST:   VAR_LIST ',' VAR{
     CREATE_ST_KEY(temp, $3->lexeme);
     CREATE_ST_ENTRY(temp_entry,"ID", $3->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $3->dim));
+    temp_entry->arr_dims = $3->arr_dims;
     int err = insert_symtbl(temp,temp_entry);
     if(err == ALREADY_EXIST){
         yyerror("Variable already declared: " + $3->lexeme);
@@ -628,6 +643,8 @@ VAR_LIST:   VAR_LIST ',' VAR{
     CREATE_ST_KEY(temp, $3->lexeme);
     CREATE_ST_ENTRY(temp_entry,"ID", $3->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $3->dim));
+    temp_entry->arr_dims = $3->arr_dims;
+
     
     int err = insert_symtbl(temp,temp_entry);
     if(err == ALREADY_EXIST){
@@ -642,6 +659,8 @@ VAR_LIST:   VAR_LIST ',' VAR{
     CREATE_ST_KEY(temp, $1->lexeme);
     CREATE_ST_ENTRY(temp_entry,"ID", $1->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $1->dim));
+    temp_entry->arr_dims = $1->arr_dims;
+
     
     int err = insert_symtbl(temp,temp_entry);
     if(err == ALREADY_EXIST){
@@ -656,6 +675,7 @@ VAR_LIST:   VAR_LIST ',' VAR{
     CREATE_ST_KEY(temp, $1->lexeme);
     CREATE_ST_ENTRY(temp_entry,"ID", $1->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $1->dim));
+    temp_entry->arr_dims = $1->arr_dims;
     
     int err = insert_symtbl(temp,temp_entry);
     if(err == ALREADY_EXIST){
@@ -698,6 +718,8 @@ VARA:   ID '=' Expr{
     if(!can_be_TypeCasted($6->type, dType + TYPE_ARRAY)){
         yyerror("Type Mismatch " + $6->type + " cannot be typecasted to " + dType + TYPE_ARRAY);
     }
+
+    $$->arr_dims = $6->arr_dims;
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' Array_init_2D{
     vector<treeNode*> v;
@@ -720,6 +742,7 @@ VARA:   ID '=' Expr{
     if(!can_be_TypeCasted($9->type, dType + TYPE_ARRAY + TYPE_ARRAY)){
         yyerror("Type Mismatch " + $9->type + " cannot be typecasted to " + dType + TYPE_ARRAY + TYPE_ARRAY);
     }
+    $$->arr_dims = $9->arr_dims;
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' Array_init_3D{
     vector<treeNode*> v;
@@ -745,7 +768,7 @@ VARA:   ID '=' Expr{
     if(!can_be_TypeCasted($12->type, dType + TYPE_ARRAY + TYPE_ARRAY + TYPE_ARRAY)){
         yyerror("Type Mismatch " + $12->type + " cannot be typecasted to " + dType + TYPE_ARRAY + TYPE_ARRAY + TYPE_ARRAY);
     }
-
+    $$->arr_dims = $12->arr_dims;
 }
 ;
 
@@ -761,6 +784,8 @@ Array_init_1D: L1D{
     insertAttr(v, NULL, "]", 0);
     $$ = makenode("Array-1D", v);
     $$->type = dType + TYPE_ARRAY;
+
+    $$->arr_dims.push_back($4->addr);
 }
 ;
 Array_init_2D: L2D{
@@ -779,6 +804,9 @@ Array_init_2D: L2D{
     $$ = makenode("Array-2D", v);
 
     $$->type = dType + TYPE_ARRAY + TYPE_ARRAY;
+
+    $$->arr_dims.push_back($4->addr);
+    $$->arr_dims.push_back($7->addr);
 }
 ;
 Array_init_3D: L3D{
@@ -800,6 +828,10 @@ Array_init_3D: L3D{
     $$ = makenode("Array-3D", v);
 
     $$->type = dType + TYPE_ARRAY + TYPE_ARRAY + TYPE_ARRAY;
+
+    $$->arr_dims.push_back($4->addr);
+    $$->arr_dims.push_back($7->addr);
+    $$->arr_dims.push_back($10->addr);
 }
 ;
 
@@ -856,7 +888,14 @@ VAR:    ID{
 L3D:    '{' CONT3D '}'{
     $$ = $2;
     $$->type = $2->type + TYPE_ARRAY;
-}
+
+    $$->dims_count_1 = dims_count_1;
+    $$->dims_count_2 = dims_count_2;
+    $$->dims_count_3 = dims_count_3;
+    $$->arr_dims.push_back(to_string(dims_count_1));
+    $$->arr_dims.push_back(to_string(dims_count_2));
+    $$->arr_dims.push_back(to_string(dims_count_3));
+}   
 ;
 CONT3D: CONT3D ',' L2D{
     vector<treeNode*> v;
@@ -870,15 +909,36 @@ CONT3D: CONT3D ',' L2D{
     else{
         yyerror("Type mismatch in array initialization list");
     }
+
+    dims_count_3 += 1;
+    $$->dims_count_3 = dims_count_3;
+    $$->dims_count_2 = dims_count_2;
+    $$->dims_count_1 = dims_count_1;
+
+    //cout<<"3d dims_count_2: "<<dims_count_2<<endl;
+    if(dims_count_2 != $1->dims_count_2){
+        yyerror("Array dimensions mismatch");
+    }
 }
 |       L2D{
     $$ = $1;
+    dims_count_3 = 1;
+
+    $$->dims_count_3 = dims_count_3;
+    $$->dims_count_2 = dims_count_2;
+    $$->dims_count_1 = dims_count_1;
 }
 ;
 
 L2D:    '{' CONT2D '}'{
     $$ = $2;
     $$->type = $2->type + TYPE_ARRAY;
+
+    $$->dims_count_1 = dims_count_1;
+    $$->dims_count_2 = dims_count_2;
+
+    $$->arr_dims.push_back(to_string(dims_count_1));
+    $$->arr_dims.push_back(to_string(dims_count_2));
 }
 ;
 CONT2D: CONT2D ',' L1D{
@@ -893,15 +953,29 @@ CONT2D: CONT2D ',' L1D{
     else{
         yyerror("Type mismatch in array initialization list");
     }
+    dims_count_2 += 1;
+    $$->dims_count_2 = dims_count_2;
+    $$->dims_count_1 = dims_count_1;
+
+    //cout<<dims_count_1<<" "<<$1->dims_count_1<<endl;
+    
+    if(dims_count_1 != $1->dims_count_1){
+        yyerror("Array dimensions mismatch");
+    }   
 }
 |       L1D{
     $$ = $1;
+    dims_count_2 = 1;
+    $$->dims_count_2 = dims_count_2;
+    $$->dims_count_1 = dims_count_1;
 }
 ;
 
 L1D: '{' CONT1D '}' {
     $$ = $2;
     $$->type = $2->type + TYPE_ARRAY;
+    $$->dims_count_1 = dims_count_1;
+    $$->arr_dims.push_back(to_string(dims_count_1));
 } 
 ;
 CONT1D: CONT1D ',' Expr{
@@ -917,9 +991,15 @@ CONT1D: CONT1D ',' Expr{
     else{
         yyerror("Type mismatch in array initialization list");
     }
+
+    dims_count_1 += 1;
+    $$->dims_count_1 = dims_count_1;
 }
 |       Expr{
     $$ = $1;
+
+    dims_count_1 = 1;
+    $$->dims_count_1 = dims_count_1;
 }
 ;
 
@@ -1752,7 +1832,17 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         yyerror("Array index must be of type int");
     }
     if($1->type.compare($1->type.size()-2, 2, TYPE_ARRAY)==0){
+        arr_d = 1;
+        int width = 1;
+        CREATE_ST_KEY(temp, $1->lexeme);
+        SymbTbl_entry* entry = lookup(temp);
+        for(int i=arr_d; i<entry->arr_dims.size(); i++){
+            width *= stoi(entry->arr_dims[i]);
+        }
         $$->type = $1->type.substr(0, $1->type.size()-2);
+        $$->addr = get_temp($1->type.substr(0, $1->type.size()-2));
+        $$->lexeme = $1->lexeme;
+        emit("*", $3->addr, to_string(Size[$1->type[0]]*width), $$->addr);
     }
     else{
         yyerror("Cannot access array of type " + $$->type);
@@ -1771,7 +1861,25 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         yyerror("Array index must be of type int");
     }
     if($1->type.compare($1->type.size()-2, 2, TYPE_ARRAY)==0){
+        arr_d++;
+        int width = 1;
+        CREATE_ST_KEY(temp, $1->lexeme);
+        SymbTbl_entry* entry = lookup(temp);
+        for(int i=arr_d; i<entry->arr_dims.size(); i++){
+            width *= stoi(entry->arr_dims[i]);
+        }
         $$->type = $1->type.substr(0, $1->type.size()-2);
+        $$->addr = get_temp($1->type.substr(0, $1->type.size()-2));
+        $$->lexeme = $1->lexeme;
+        string t = get_temp($1->type.substr(0, $1->type.size()-2));
+        //cout<<"t = "<<t<<" arr_d= "<<arr_d<<endl;
+        emit("*", $3->addr, to_string(Size[$1->type[0]]*width), t);
+        emit("+", $1->addr, t, $$->addr);
+        if(arr_d==entry->arr_dims.size()){
+            string id = get_temp($1->type.substr(0, $1->type.size()-2));
+            emit("", $1->lexeme + "["+$$->addr + "]", "", id);
+        }
+        
     }
     else{
         yyerror("Cannot access array of type " + $$->type);

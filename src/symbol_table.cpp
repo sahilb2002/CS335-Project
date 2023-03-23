@@ -61,7 +61,11 @@ SymbolTable* create_symtbl(){
 void printSymbolTable(SymbolTable* tbl){
     cout<<"Symbol Table ID: "<<tbl->tbl_id<<endl;
     for(auto p:tbl->table){
-        cout<< p.second->lexeme << " lineno:" <<p.second->lineno<<" Type: "<<p.second->type[0]<<endl;
+        cout<< p.second->lexeme << " lineno:" <<p.second->lineno<<" Type: "<<p.second->type[0]<<" ";
+        for(auto it:p.second->arr_dims){
+            cout<<it<<" ";
+        }
+        cout << endl;
     }
     for(auto child:tbl->children){
         printSymbolTable(child);
