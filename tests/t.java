@@ -7,14 +7,30 @@ public class PM_Chutiya {
     //     c=a+b;
     //     return c;
     // }
-    int a;
-    int arr[][][] = new int[0][a][4];
-    int i = 1;
-    int j = 2;
-    int k = 3;
+    // int a;
+    // int arr[][][] = new int[0][a][4];
+    // int i = 1;
+    // int j = 2;
+    // int k = 3;
+    // void main(){
+    //     k = arr[i][0][0];
+    //     arr[2][0][0]=k;
+    // }
     void main(){
-        k = arr[i][0][0];
-        arr[2][0][0]=k;
+        int a,b;
+        if(a){
+            a = 10;
+            if(a==10){
+                int c=132;
+            }
+        }
+        else if(a==10){
+            int c=132;
+        }
+        else{
+            int c=132;
+        }
+        int c = a+b;
     }
 
     // void main(){

@@ -20,6 +20,12 @@ typedef struct treeNode{
 	int dims_count_1;
 	int dims_count_2;
 	int dims_count_3;
+
+	int first_instr;
+	int last_instr;
+
+	int falselist;
+	int truelist;
 }treeNode;
 
 void beginAST();
