@@ -8,13 +8,13 @@ public class PM_Chutiya {
     //     return c;
     // }
     int a;
-    int arr[][][] = new int[0][a][4];
+    int arr[][] = new int[7][4];
     int i = 1;
     int j = 2;
     int k = 3;
     void main(){
-        k = arr[i][0][0];
-        arr[2][0][0]=k;
+        k = arr[i][2];
+        arr[2][3]=k;
     }
 
     // void main(){

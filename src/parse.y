@@ -1855,12 +1855,25 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         int width = 1;
         CREATE_ST_KEY(temp, $1->lexeme);
         SymbTbl_entry* entry = lookup(temp);
-        for(int i=arr_d; i<entry->arr_dims.size(); i++){
-            width *= stoi(entry->arr_dims[i]);
+        string s, w;
+         w=get_temp($1->type.substr(0, $1->type.size()-2));
+        if(arr_d<entry->arr_dims.size()){
+            s = entry->arr_dims[arr_d];
         }
+    
+        for(int i=arr_d+1; i<entry->arr_dims.size(); i++){
+            emit("*", entry->arr_dims[i], s, w);
+
+        }
+        
+        if(s!="") emit("*", to_string(Size[$1->type[0]]), w, w);
+        else emit("*", to_string(Size[$1->type[0]]), "1", w);
+
         $$->addr = get_temp($1->type.substr(0, $1->type.size()-2));
         $$->lexeme = $1->lexeme;
-        emit("*", $3->addr, to_string(Size[$1->type[0]]*width), $$->addr);
+        
+        emit("*", $3->addr, w, $$->addr);
+        cout<<"s = "<<$$->addr<<endl;
         if(arr_d==entry->arr_dims.size()){
             flag_array = 1;
         }
@@ -1887,15 +1900,22 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         int width = 1;
         CREATE_ST_KEY(temp, $1->lexeme);
         SymbTbl_entry* entry = lookup(temp);
-        for(int i=arr_d; i<entry->arr_dims.size(); i++){
-            width *= stoi(entry->arr_dims[i]);
-        }
+        string s;
+        if(arr_d<entry->arr_dims.size()) s = entry->arr_dims[arr_d];
+        // for(int i=arr_d+1; i<entry->arr_dims.size(); i++){
+        //     s = s + " x " + entry->arr_dims[i];
+        //     // width *= stoi(entry->arr_dims[i]);
+        // }
         $$->type = $1->type.substr(0, $1->type.size()-2);
         $$->addr = get_temp($1->type.substr(0, $1->type.size()-2));
         $$->lexeme = $1->lexeme;
+        string w = get_temp($1->type.substr(0, $1->type.size()-2));
+        
+        if(s!="") emit("*", to_string(Size[$1->type[0]]), s, w);
+        else emit("*", to_string(Size[$1->type[0]]), "1", w);
+
         string t = get_temp($1->type.substr(0, $1->type.size()-2));
-        //cout<<"t = "<<t<<" arr_d= "<<arr_d<<endl;
-        emit("*", $3->addr, to_string(Size[$1->type[0]]*width), t);
+        emit("*", $3->addr, w, t);
         emit("+", $1->addr, t, $$->addr);
         
         if(arr_d==entry->arr_dims.size()){
