@@ -7,11 +7,14 @@ public class PM_Chutiya {
     //     c=a+b;
     //     return c;
     // }
-    int arr[][][] = new int[2][3][4];
+    int arr[][][] = new int[2][2][3];
     int i = 1;
     int j = 2;
     int k = 3;
-    int c = arr[i][j][k];
+    void main(){
+        k = arr[2][1][j];
+        arr[j][i][0]=k;
+    }
 
     // void main(){
     //     while(a<10){

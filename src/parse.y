@@ -32,6 +32,7 @@
     int dims_count_2 = 0;
     int dims_count_3 = 0;
     int arr_d = 0;
+    int flag_array = 0;
 
     map<char, int> Size ={
         {'I', 4},
@@ -1092,7 +1093,15 @@ Assignment: LeftHandSide AssignmentOperator Expr{
     }
 
     //3ac
-    emit("", $3->addr, "", $1->addr);
+    if(flag_array==1){
+        cout<<$3->addr<<" arr "<<$1->lexeme<<"[]"<<$1->addr<<endl;
+        emit("",$3->addr, "", $1->lexeme + "[" + $1->addr + "]" );
+        flag_array = 0;
+    }
+    else{
+        cout<<$3->addr<<" no arr "<<$1->addr<<endl;
+        emit("", $3->addr, "", $1->addr);
+    } 
 }
 ;
 
@@ -1205,7 +1214,10 @@ LeftHandSide:   ExpressionName{
     $$->addr = $1->addr;
 }
 |               FieldAccess{$$ = $1;}
-|               ArrayAccess{$$ = $1;}
+|               ArrayAccess{
+                                $$ = $1;
+                                flag_array = 1;
+}
 ;
 
 ConditionalExpression:  ConditionalOrExpression{$$ = $1;}
@@ -1693,6 +1705,16 @@ FieldAccess:    Primary '.' ID{
 
 Primary:    PrimaryNoNewArray{
     $$ = $1;
+    flag_array=0;
+    /*if(flag_array){
+        //    cout<<$$->addr<<" "<<$1->addr<<endl;
+        string id = $1->addr;
+        $$->addr = get_temp($1->type);
+        cout<<id<<"k "<<$$->addr<<endl;
+        emit("", $1->lexeme + "["+ id + "]", "", $$->addr);
+        flag_array = 0;
+    }*/
+    
 }
 |           ArrayCreationExpr{
     $$ = $1;
@@ -1714,7 +1736,9 @@ PrimaryNoNewArray:  LIT{
     $$->type = $2->type;
     $$->addr = $2->addr;
 }
-|                   ArrayAccess{$$ = $1;}
+|                   ArrayAccess{
+                        $$ = $1;
+}
 |                   Meth_invoc{$$ = $1;}
 |                   FieldAccess{$$ = $1;}
 |                   KEY_NEW ID '(' ARG_LIST ')'{
@@ -1843,10 +1867,16 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         $$->addr = get_temp($1->type.substr(0, $1->type.size()-2));
         $$->lexeme = $1->lexeme;
         emit("*", $3->addr, to_string(Size[$1->type[0]]*width), $$->addr);
+        /*if(arr_d==entry->arr_dims.size()){
+            string id = get_temp($1->type.substr(0, $1->type.size()-2));
+            cout<<"do "<<id<<" "<<$$->addr<<endl;
+            emit("", $1->lexeme + "["+$$->addr + "]", "", id);
+        }*/
     }
     else{
         yyerror("Cannot access array of type " + $$->type);
     }
+    flag_array = 1;
 }
 |               PrimaryNoNewArray '[' Expr ']'{
     vector<treeNode*> v;
@@ -1875,10 +1905,15 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         //cout<<"t = "<<t<<" arr_d= "<<arr_d<<endl;
         emit("*", $3->addr, to_string(Size[$1->type[0]]*width), t);
         emit("+", $1->addr, t, $$->addr);
-        if(arr_d==entry->arr_dims.size()){
+        
+        /*if(arr_d==entry->arr_dims.size()){
             string id = get_temp($1->type.substr(0, $1->type.size()-2));
-            emit("", $1->lexeme + "["+$$->addr + "]", "", id);
-        }
+            cout<<$$->addr<<" add"<<endl;
+            cout<<$1->lexeme<<" $1 "<<$1->addr<<endl;
+            $$->addr = id;
+            cout<<"id "<<id<<endl;
+            emit("", $1->lexeme + "["+$1->addr + "]", "", id);
+        }*/
         
     }
     else{
