@@ -719,7 +719,6 @@ VARA:   ID '=' Expr{
     if(!can_be_TypeCasted($6->type, dType + TYPE_ARRAY)){
         yyerror("Type Mismatch " + $6->type + " cannot be typecasted to " + dType + TYPE_ARRAY);
     }
-
     $$->arr_dims = $6->arr_dims;
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' Array_init_2D{
@@ -852,6 +851,8 @@ VAR:    ID{
 
     $$->lexeme = *$1;
     $$->dim = 1;
+    
+    $$->arr_dims.push_back($3->lexeme);
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']'{
     vector<treeNode*> v;
@@ -866,6 +867,8 @@ VAR:    ID{
 
     $$->lexeme = *$1;
     $$->dim = 2;
+    $$->arr_dims.push_back($3->lexeme);
+    $$->arr_dims.push_back($6->lexeme);
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '[' EMP_EXPR ']'{
     vector<treeNode*> v;
@@ -883,6 +886,9 @@ VAR:    ID{
 
     $$->lexeme = *$1;
     $$->dim = 3;
+    $$->arr_dims.push_back($3->lexeme);
+    $$->arr_dims.push_back($6->lexeme);
+    $$->arr_dims.push_back($9->lexeme);
 }
 ;
 
@@ -1856,7 +1862,7 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         CREATE_ST_KEY(temp, $1->lexeme);
         SymbTbl_entry* entry = lookup(temp);
         string s, w;
-         w=get_temp($1->type.substr(0, $1->type.size()-2));
+        w=get_temp($1->type.substr(0, $1->type.size()-2));
         if(arr_d<entry->arr_dims.size()){
             s = entry->arr_dims[arr_d];
         }
@@ -1873,7 +1879,7 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         $$->lexeme = $1->lexeme;
         
         emit("*", $3->addr, w, $$->addr);
-        cout<<"s = "<<$$->addr<<endl;
+        
         if(arr_d==entry->arr_dims.size()){
             flag_array = 1;
         }

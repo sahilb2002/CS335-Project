@@ -8,7 +8,7 @@ public class PM_Chutiya {
     //     return c;
     // }
     int a;
-    int arr[][] = new int[7][4];
+    int arr[2][3];
     int i = 1;
     int j = 2;
     int k = 3;
