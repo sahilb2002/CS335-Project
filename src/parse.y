@@ -1092,16 +1092,7 @@ Assignment: LeftHandSide AssignmentOperator Expr{
         yyerror("Type Mismatched cannot cast " + $3->type + " to " + $1->type);
     }
 
-    //3ac
-    if(flag_array==1){
-        cout<<$3->addr<<" arr "<<$1->lexeme<<"[]"<<$1->addr<<endl;
-        emit("",$3->addr, "", $1->lexeme + "[" + $1->addr + "]" );
-        flag_array = 0;
-    }
-    else{
-        cout<<$3->addr<<" no arr "<<$1->addr<<endl;
-        emit("", $3->addr, "", $1->addr);
-    } 
+    emit("", $3->addr, "", $1->addr);   
 }
 ;
 
@@ -1216,7 +1207,8 @@ LeftHandSide:   ExpressionName{
 |               FieldAccess{$$ = $1;}
 |               ArrayAccess{
                                 $$ = $1;
-                                flag_array = 1;
+                                $$->addr = $1->lexeme + "[" + $1->addr + "]";
+
 }
 ;
 
@@ -1705,15 +1697,17 @@ FieldAccess:    Primary '.' ID{
 
 Primary:    PrimaryNoNewArray{
     $$ = $1;
-    flag_array=0;
-    /*if(flag_array){
-        //    cout<<$$->addr<<" "<<$1->addr<<endl;
+    // $$ = new treeNode;
+    // flag_array=0;
+    // $$->addr = $1->lexeme + "[" + $1->addr + "]";
+    if(flag_array){
         string id = $1->addr;
         $$->addr = get_temp($1->type);
-        cout<<id<<"k "<<$$->addr<<endl;
         emit("", $1->lexeme + "["+ id + "]", "", $$->addr);
         flag_array = 0;
-    }*/
+    }
+    // $$->type= $1->type;
+
     
 }
 |           ArrayCreationExpr{
@@ -1856,6 +1850,7 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         yyerror("Array index must be of type int");
     }
     if($1->type.compare($1->type.size()-2, 2, TYPE_ARRAY)==0){
+        $$->type = $1->type.substr(0, $1->type.size()-2);
         arr_d = 1;
         int width = 1;
         CREATE_ST_KEY(temp, $1->lexeme);
@@ -1863,20 +1858,17 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         for(int i=arr_d; i<entry->arr_dims.size(); i++){
             width *= stoi(entry->arr_dims[i]);
         }
-        $$->type = $1->type.substr(0, $1->type.size()-2);
         $$->addr = get_temp($1->type.substr(0, $1->type.size()-2));
         $$->lexeme = $1->lexeme;
         emit("*", $3->addr, to_string(Size[$1->type[0]]*width), $$->addr);
-        /*if(arr_d==entry->arr_dims.size()){
-            string id = get_temp($1->type.substr(0, $1->type.size()-2));
-            cout<<"do "<<id<<" "<<$$->addr<<endl;
-            emit("", $1->lexeme + "["+$$->addr + "]", "", id);
-        }*/
+        if(arr_d==entry->arr_dims.size()){
+            flag_array = 1;
+        }
     }
     else{
         yyerror("Cannot access array of type " + $$->type);
     }
-    flag_array = 1;
+    // flag_array = 1;
 }
 |               PrimaryNoNewArray '[' Expr ']'{
     vector<treeNode*> v;
@@ -1906,14 +1898,9 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         emit("*", $3->addr, to_string(Size[$1->type[0]]*width), t);
         emit("+", $1->addr, t, $$->addr);
         
-        /*if(arr_d==entry->arr_dims.size()){
-            string id = get_temp($1->type.substr(0, $1->type.size()-2));
-            cout<<$$->addr<<" add"<<endl;
-            cout<<$1->lexeme<<" $1 "<<$1->addr<<endl;
-            $$->addr = id;
-            cout<<"id "<<id<<endl;
-            emit("", $1->lexeme + "["+$1->addr + "]", "", id);
-        }*/
+        if(arr_d==entry->arr_dims.size()){
+            flag_array = 1;
+        }
         
     }
     else{
