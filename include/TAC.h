@@ -30,7 +30,7 @@ struct quad{
 };
 
 void emit(qel_t op, qel_t arg1, qel_t arg2, qel_t res);
-void print_code(char* outfile);
+void print_code();
 qel_t get_temp(string type);
 
 void backPatch(int instr, int target);

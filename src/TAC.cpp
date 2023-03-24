@@ -24,10 +24,11 @@ qel_t get_temp(string type){
     return temp;
 }
 
-void print_code(char* outfile){
-    FILE *tac = fopen(outfile, "w");
+void print_code(){
+    FILE *tac = fopen("tac.txt", "w");
+    // fstream tac = fstream("tac.txt", ios::out);
     if(tac == NULL){
-        cout << "Error opening file" << outfile << endl;
+        cout << "Error opening file tac.txt"<< endl;
         exit(1);
     }
 

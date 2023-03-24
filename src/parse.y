@@ -1765,10 +1765,10 @@ AdditiveExpression:         MultiplicativeExpression{$$ = $1;}
         emit($1->type + "TO" + $$->type, $1->addr, "", temp);
         $1->addr = temp;
     }
-    if($$->type != $2->type){
+    if($$->type != $3->type){
         string temp = get_temp($$->type);
-        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
-        $1->addr = temp;
+        emit($3->type + "TO" + $$->type, $3->addr, "", temp);
+        $3->addr = temp;
     }
 
     //3ac
@@ -2850,7 +2850,6 @@ int main(int argc, char** argv) {
     char* infile = argv[1];
     char* dotfile_path = NULL;
     bool verbose = false;
-    char* threeac_outfile = "TAC.txt";
     for(int i=1;i<argc;i++){
         
         /* cout<<i<<endl; */
@@ -2861,9 +2860,6 @@ int main(int argc, char** argv) {
         /* if argv contains --output= take it as output file */
         else if(strncmp(argv[i], "--dot=", 6) == 0){
             dotfile_path = argv[i] + 6;
-        }
-        else if(strcmp(argv[i], "--3ac=", 6) == 0){
-            threeac_outfile = argv[i] + 6;
         }
         /* if argv is --verbose */
         else if(strcmp(argv[i], "--verbose") == 0){
@@ -2878,7 +2874,6 @@ int main(int argc, char** argv) {
             cout << "  --dot=FILE\t\tWrite AST output to FILE" << endl;
             cout << "  --verbose\t\tPrint verbose output" << endl;
             cout << "  --help\t\tPrint this help message" << endl;
-            cout << "  --3ac=FILE\t\tWrite 3AC output to FILE" << endl;
             return 0;
         }
         /* else print error */
@@ -2920,7 +2915,7 @@ int main(int argc, char** argv) {
     } while (!feof(yyin));
     endAST();
     printSymbolTable(current);
-    print_code(threeac_outfile);
+    print_code();
     if(verbose){
         cout<<"Parsing Complete"<<endl;
         cout<<"Output written to "<<dotfile_path<<endl;
