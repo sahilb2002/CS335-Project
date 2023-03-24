@@ -1,6 +1,5 @@
 public class BubbleSortExample {  
-    static void bubbleSort(int[] arr) {  
-        int n = arr.length;  
+    void bubbleSort(int arr[], int n) {  
         int temp = 0;  
          for(int i=0; i < n; i++){  
                  for(int j=1; j < (n-i); j++){  
@@ -13,22 +12,22 @@ public class BubbleSortExample {
                           
                  }  
          }  
-  
+         return;
     }  
-    public static void main(String[] args) {  
+    public void main(String args[]) {  
                 int arr[] ={3,60,35,2,45,320,5};  
-                 
+                int n = 7;
                 System.out.println("Array Before Bubble Sort");  
-                for(int i=0; i < arr.length; i++){  
-                        System.out.print(arr[i] + " ");  
+                for(int i=0; i < n; i++){  
+                        System.out.println(arr[i] + " ");  
                 }  
                 System.out.println();  
                   
-                bubbleSort(arr);//sorting array elements using bubble sort  
+                bubbleSort(arr, n);//sorting array elements using bubble sort  
                  
                 System.out.println("Array After Bubble Sort");  
-                for(int i=0; i < arr.length; i++){  
-                        System.out.print(arr[i] + " ");  
+                for(int i=0; i < n; i++){  
+                        System.out.println(arr[i] + " ");  
                 }  
    
         }  

@@ -1272,9 +1272,9 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
         if(entry){
             if(compareMethTypes(entry->type, $3->typevec)){
                 $$->type = *(entry->type.rbegin());
-                if(is_stat_scope && !entry->stat_flag){
-                    yyerror("cannot call non static function " + entry->lexeme + " from static scope");
-                }
+                // if(is_stat_scope && !entry->stat_flag){
+                //     yyerror("cannot call non static function " + entry->lexeme + " from static scope");
+                // }
                 $$->addr = get_temp($$->type);
                 emit("call", $1->lexeme + ", " + to_string($3->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
             }
@@ -1299,9 +1299,9 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
                 SymbTbl_entry* entry = it->second;
                 if(entry->mod_flag == PUBLIC_FLAG){
                     $$->type = *(entry->type.rbegin());
-                    if(is_stat_scope && !entry->stat_flag){
-                        yyerror("cannot call non static function " + entry->lexeme + " from static scope");
-                    }
+                    // if(is_stat_scope && !entry->stat_flag){
+                    //     yyerror("cannot call non static function " + entry->lexeme + " from static scope");
+                    // }
                     $$->addr = get_temp($$->type);
                     emit("call", $1->typevec[1] + ", " + to_string($3->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
                 }
@@ -1400,7 +1400,7 @@ ExpressionName:  AmbiguousName '.' ID{
     SymbTbl_entry* entry = lookup(temp);
     if(entry && !entry->is_func){
         if(is_stat_scope && !entry->stat_flag){
-            yyerror("cannot access static variable " + entry->lexeme + "from non static scope.");
+            yyerror("cannot access static variable " + entry->lexeme + " from non static scope.");
         }
         $$->type = entry->type[0];
         $$->fin_flag = entry->fin_flag;

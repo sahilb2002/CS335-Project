@@ -1,5 +1,5 @@
 public class IfElseIfExample {  
-public static void main() {  
+public void main() {  
     int marks=65;  
       
     if(marks<50){  

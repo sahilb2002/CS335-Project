@@ -1,4 +1,4 @@
-public class test{
+public class test{ //error array dimension mismatch
     public static void main(String args[]){
         // System.out.println("Hello World");
     }
