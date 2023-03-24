@@ -34,20 +34,29 @@
     int dims_count_3 = 0;
     int arr_d = 0;
     int flag_array = 0;
+    int flag_return = 0;
+
+    int is_stat_scope = 0;
+    int stat_flag = 0;
 
     map<char, int> Size ={
         {'I', 4},
         {'F', 4},
         {'D', 8},
         {'L', 8},
-        {'C', 1}
+        {'C', 1},
+        {'S', 2}
     };
     
     FILE* dotfile;
 
     void yyerror(string s) {
-        cout << "[Line no: " << yylineno << "] " << "error: " << s << endl;
+        cout << "[Line no: " << yylineno << "] " << "Error: " << s << endl;
         exit(-1);
+    }
+
+    void yywarn(string s) {
+        cout << "[Line no: " << yylineno << "] " << "Warning: " << s << endl;
     }
 
 %}
@@ -78,6 +87,7 @@
 %token<str> KEY_STRING
 %token<str> KEY_VOID
 %token<str> KEY_NEW
+%token<str> KEY_SHORT
 
 %token<str> KEY_FOR
 %token<str> KEY_WHILE
@@ -89,7 +99,6 @@
 %token<str> KEY_RETURN
 %token<str> KEY_ASSERT
 %token<str> KEY_YIELD
-%token<str> KEY_SUPER
 %token<str> KEY_IMPORT
 %token<str> KEY_THROW
 %token<str> KEY_CASE
@@ -122,8 +131,8 @@
 
 %type<str> Imp_list AssignmentOperator
 %type<ptr> START ImportDecl_list AmbiguousName ExpressionName ClassDeclaration_list CastExpression ClassDeclaration ImportDecl BLCK_STMNT
-%type<ptr> PrimaryNoNewArray BODY BLCK STMNT_without_sub  Assert_stmnt STMNT STMNT_noshortif ConstructorDeclaration ConstructorHead
-%type<ptr> WHILE_STMNT WHILE_STMNT_noshortif BASIC_FOR BASIC_FOR_noshortif FOR_UPDATE FOR_INIT IF_HEAD IF_STMNT
+%type<ptr> PrimaryNoNewArray BODY BLCK STMNT_without_sub ASSERT_HEAD Assert_stmnt STMNT STMNT_noshortif ConstructorDeclaration ConstructorHead START_INSTR
+%type<ptr> WHILE_STMNT WHILE_STMNT_noshortif BASIC_FOR BASIC_FOR_noshortif FOR_UPDATE FOR_INIT IF_HEAD IF_STMNT WHILE_HEAD FOR_HEAD
 %type<ptr> STMNT_EXPR_list IF_THEN IF_THEN_ELSE IF_THEN_ELSE_noshortif DEF_VAR VAR_LIST VARA VAR
 %type<ptr> STMNT_EXPR Meth_invoc Expr AssignmentExpression Assignment LeftHandSide ConditionalAndExpression
 %type<ptr> ConditionalOrExpression ConditionalExpression InclusiveOrExpression ExclusiveOrExpression 
@@ -225,6 +234,7 @@ BLCK:   '{' {create_symtbl();} BODY '}'{
     current = current->parent;
     $$->first_instr = $3->first_instr;
     $$->last_instr = $3->last_instr;
+    stat_flag = 0;
 }
 |       '{' {create_symtbl();} '}'{
     vector<treeNode*> v;
@@ -235,6 +245,7 @@ BLCK:   '{' {create_symtbl();} BODY '}'{
     current = current->parent;
     $$->first_instr = code.size();
     $$->last_instr = code.size()-1;
+    stat_flag = 0;
 }
 ;
 
@@ -253,6 +264,11 @@ STMNT_without_sub:  BLCK{
     // semantics
     if(!can_be_TypeCasted($2->type, retType))
         yyerror("Invalid Return Type, expected " + retType );
+
+    flag_return = 1;
+    emit("RET",$2->addr,"","");
+
+    $$->last_instr = code.size()-1;
 }
 |                   KEY_CONTINUE ';'{
     $$ = makeleaf("continue");
@@ -266,29 +282,36 @@ STMNT_without_sub:  BLCK{
     insertAttr(v, $2, "", 1);
     $$ = makenode("STMNT_without_sub", v);
 
+    emit("yield", $2->addr, "", "");
+    
     $$->first_instr = $2->first_instr;
-    $$->last_instr = $2->last_instr;
+    $$->last_instr = code.size()-1;
 }
 |                   Assert_stmnt{
-    $$ = $1;
-}
-|                   ThrowStatement{
     $$ = $1;
 }
 |                   SwitchStatement{
     $$ = $1;
 }
-|                   KEY_DO STMNT KEY_WHILE '(' Expr ')' ';'{
+|                   KEY_DO START_INSTR STMNT KEY_WHILE '(' Expr ')' ';'{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("do"), "", 1);
-    insertAttr(v, $2, "", 1);
+    insertAttr(v, $3, "", 1);
     insertAttr(v, makeleaf("while"), "", 1);
     insertAttr(v, NULL, "(", 0);
-    insertAttr(v, $5, "", 1);
+    insertAttr(v, $6, "", 1);
     insertAttr(v, NULL, ")", 0);
     $$ = makenode("STMNT_without_sub", v);
+
+    emit(IF, $6->addr, GOTO, "");
+    backPatch(code.size()-1, $2->last_instr);
+    $$->last_instr = code.size()-1;
 }
-|                   ';' {$$ = NULL;}
+|                   ';' {
+    $$ = new treeNode;
+    $$->last_instr = code.size();
+    $$->addr = "";
+}
 
 ;
 
@@ -439,18 +462,37 @@ ThrowStatement: KEY_THROW Expr ';' {
     $$ = makenode("ThrowStatement", v);
 }
 
-Assert_stmnt:   KEY_ASSERT Expr ';' {
+ASSERT_HEAD: KEY_ASSERT Expr{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("assert"), "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("Assert_stmnt", v);
+
+    // 3ac
+    emit(IFFALSE, $2->addr, GOTO, "");
+    $$->falselist = code.size()-1;
+    $$->last_instr = code.size()-1;
 }
-|               KEY_ASSERT Expr ':' Expr ';'{
+
+Assert_stmnt:   ASSERT_HEAD ';' {
+    $$ = $1;
+    emit(ASSERT_FAIL,to_string(yylineno),"","");
+    backPatch($$->falselist, code.size());
+    $$->last_instr = code.size()-1;
+    
+}
+|               ASSERT_HEAD ':' Expr ';'{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("assert"), "", 1);
-    insertAttr(v, $2, "", 1);
-    insertAttr(v, $4, "", 1);
+    insertAttr(v, $1, "", 1);
+    insertAttr(v, $3, "", 1);
     $$ = makenode("Assert_stmnt", v);
+
+    // 3ac
+    emit(ASSERT_FAIL,to_string(yylineno),"","");
+    backPatch($$->falselist, code.size());
+    $$->last_instr = code.size()-1;
+
 }
 ;
 
@@ -485,61 +527,99 @@ STMNT_noshortif:    STMNT_without_sub{
 }
 ;
 
-WHILE_STMNT: KEY_WHILE '(' Expr ')' STMNT{
+START_INSTR: %empty {
+    $$ = new treeNode;
+    $$->last_instr = code.size();
+}
+
+WHILE_HEAD: KEY_WHILE '(' START_INSTR Expr ')'{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("while"), "", 1);
     insertAttr(v,NULL, "(",0);
-    insertAttr(v, $3, "", 1);
+    insertAttr(v, $4, "", 1);
     insertAttr(v,NULL, ")",0);
-    insertAttr(v, $5, "", 1);
+    $$ = makenode("WHILE_HEAD", v);
+
+    $$->first_instr = $3->last_instr;
+    emit(IFFALSE, $4->addr, GOTO, "");
+    $$->falselist = code.size()-1;
+    $$->last_instr = code.size()-1;
+}
+
+WHILE_STMNT: WHILE_HEAD STMNT{
+    vector<treeNode*> v;
+    insertAttr(v, $1, "", 1);
+    insertAttr(v, $2, "", 1);
     $$ = makenode("WHILE_STMNT", v);
+
+    // 3ac
+    emit(GOTO, to_string($1->first_instr), "", "");
+    $$->last_instr = code.size()-1;
+    backPatch($1->falselist, code.size());
 }
 ;
-WHILE_STMNT_noshortif: KEY_WHILE '(' Expr ')' STMNT_noshortif{
+WHILE_STMNT_noshortif: WHILE_HEAD STMNT_noshortif{
     vector<treeNode*> v;
-    insertAttr(v, makeleaf("while"), "", 1);
-    insertAttr(v,NULL, "(",0);
-    insertAttr(v, $3, "", 1);
-    insertAttr(v,NULL, ")",0);
-    insertAttr(v, $5, "", 1);
+    insertAttr(v, $1, "", 1);
+    insertAttr(v, $2, "", 1);
     $$ = makenode("WHILE_STMNT_noshortif", v);
+    
+    // 3ac
+    emit(GOTO, to_string($1->first_instr), "", "");
+    $$->last_instr = code.size()-1;
+    backPatch($1->falselist, code.size());
 }
 ;
 
-FOR: KEY_FOR '('{
-    create_symtbl();
-}
-
-BASIC_FOR:  FOR FOR_INIT ';' EMP_EXPR ';' FOR_UPDATE ')' STMNT{
+FOR_HEAD: KEY_FOR '(' {create_symtbl();} FOR_INIT ';'START_INSTR EMP_EXPR { emit(IFFALSE, $7->addr, GOTO, ""); $7->falselist = code.size()-1; emit(GOTO, "","",""); $7->truelist = code.size()-1; } ';'START_INSTR FOR_UPDATE ')' {
     vector<treeNode*> v;
     insertAttr(v, makeleaf("for"), "", 1);
     insertAttr(v,NULL, "(",0);
-    insertAttr(v, $2, "", 1);
-    insertAttr(v, NULL, ";", 0);
     insertAttr(v, $4, "", 1);
     insertAttr(v, NULL, ";", 0);
     insertAttr(v, $6, "", 1);
+    insertAttr(v, NULL, ";", 0);
+    insertAttr(v, $10, "", 1);
     insertAttr(v,NULL, ")",0);
-    insertAttr(v, $8, "", 1);
+    $$ = makenode("FOR_HEAD", v);
+
+    emit(GOTO, to_string($6->last_instr), "", "");
+    backPatch($7->truelist, code.size());
+    $$->last_instr = code.size()-1;
+    $$->first_instr = $10->last_instr;
+    $$->falselist = $7->falselist;
+}
+
+
+
+BASIC_FOR:  FOR_HEAD STMNT{
+    vector<treeNode*> v;
+    insertAttr(v, $1, "", 1);
+    insertAttr(v, $2, "", 1);
     $$ = makenode("BASIC_FOR", v);
 
     // end of scope
     current = current->parent;
+
+    // 3ac
+    emit(GOTO, to_string($1->first_instr), "", "");
+    backPatch($1->falselist, code.size());
+    $$->last_instr = code.size()-1;
 }
 ;
-BASIC_FOR_noshortif:    FOR FOR_INIT ';' EMP_EXPR ';' FOR_UPDATE ')' STMNT_noshortif{
+BASIC_FOR_noshortif:    FOR_HEAD STMNT_noshortif{
     vector<treeNode*> v;
-    insertAttr(v, makeleaf("FOR"), "", 1);
-    insertAttr(v,NULL, "(",0);
+    insertAttr(v, $1, "", 1);
     insertAttr(v, $2, "", 1);
-    insertAttr(v, $4, "", 1);
-    insertAttr(v, $6, "", 1);
-    insertAttr(v,NULL, ")",0);
-    insertAttr(v, $8, "", 1);
     $$ = makenode("BASIC_FOR_noshortif", v);
 
     // end of scope
     current = current->parent;
+    
+    // 3ac
+    emit(GOTO, to_string($1->first_instr), "", "");
+    backPatch($1->falselist, code.size());
+    $$->last_instr = code.size()-1;
 }
 ;
 
@@ -592,7 +672,7 @@ IF_HEAD: KEY_IF '(' Expr ')' {
     
     $$->first_instr = $3->first_instr;
     $$->last_instr = code.size();
-    emit("iffalse", $3->addr, GOTO, "");
+    emit(IFFALSE, $3->addr, GOTO, "");
     $$->falselist = $$->last_instr;
 }
 
@@ -655,16 +735,18 @@ DEF_VAR: STAT DTYPE VAR_LIST{
 
     $$->first_instr = $3->first_instr;
     $$->last_instr = $3->last_instr;
+    stat_flag = 0;
 }
-|       KEY_STATIC ID{CREATE_ST_KEY(temp, *$2); temp->type.push_back(TYPE_CLASS); if(lookup(temp)){dType = *$2;} else {yyerror(*$2 + "doesn't name a type");} } VAR_LIST{
+|       KEY_STATIC {stat_flag = 1;} ID{CREATE_ST_KEY(temp, *$3); temp->type.push_back(TYPE_CLASS); if(lookup(temp)){dType = *$3;} else {yyerror(*$3 + "doesn't name a type");} } VAR_LIST{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("static"),"",1);
-    insertAttr(v,makeleaf("ID(" + *$2 + ")"), "", 1 );
-    insertAttr(v, $4, "", 1);
+    insertAttr(v,makeleaf("ID(" + *$3 + ")"), "", 1 );
+    insertAttr(v, $5, "", 1);
     $$ = makenode("DEF_VAR", v);
 
-    $$->first_instr = $4->first_instr;
-    $$->last_instr = $4->last_instr;
+    $$->first_instr = $5->first_instr;
+    $$->last_instr = $5->last_instr;
+    stat_flag = 0;
 }
 |        ID{CREATE_ST_KEY(temp, *$1); temp->type.push_back(TYPE_CLASS); if(lookup(temp)){dType = *$1;} else {yyerror(*$1 + "doesn't name a type");} } VAR_LIST{
     vector<treeNode*> v;
@@ -688,6 +770,7 @@ VAR_LIST:   VAR_LIST ',' VAR{
     CREATE_ST_ENTRY(temp_entry,"ID", $3->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $3->dim));
     temp_entry->arr_dims = $3->arr_dims;
+    temp_entry->stat_flag = stat_flag;
     int err = insert_symtbl(temp,temp_entry);
     if(err == ALREADY_EXIST){
         yyerror("Variable already declared: " + $3->lexeme);
@@ -708,7 +791,7 @@ VAR_LIST:   VAR_LIST ',' VAR{
     CREATE_ST_ENTRY(temp_entry,"ID", $3->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $3->dim));
     temp_entry->arr_dims = $3->arr_dims;
-
+    temp_entry->stat_flag = stat_flag;
     
     int err = insert_symtbl(temp,temp_entry);
     if(err == ALREADY_EXIST){
@@ -1179,8 +1262,11 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
         if(entry){
             if(compareMethTypes(entry->type, $3->typevec)){
                 $$->type = *(entry->type.rbegin());
-                $$->addr = get_temp($1->lexeme);
-                emit("call", $1->lexeme + ", " + to_string($3->typevec.size()), "", $$->addr);
+                if(is_stat_scope && !entry->stat_flag){
+                    yyerror("cannot call non static function " + entry->lexeme + " from static scope");
+                }
+                $$->addr = get_temp($$->type);
+                emit("call", $1->lexeme + ", " + to_string($3->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
             }
             else{
                 yyerror("Invalid Argument Types for Method " + $1->lexeme);
@@ -1203,6 +1289,11 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
                 SymbTbl_entry* entry = it->second;
                 if(entry->mod_flag == PUBLIC_FLAG){
                     $$->type = *(entry->type.rbegin());
+                    if(is_stat_scope && !entry->stat_flag){
+                        yyerror("cannot call non static function " + entry->lexeme + " from static scope");
+                    }
+                    $$->addr = get_temp($$->type);
+                    emit("call", $1->typevec[1] + ", " + to_string($3->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
                 }
                 else{
                     yyerror("Non-Public member " + $1->typevec[1] + " of class " + $1->typevec[0] + " cannot be accessed");
@@ -1297,6 +1388,9 @@ ExpressionName:  AmbiguousName '.' ID{
     CREATE_ST_KEY(temp, *$1);
     SymbTbl_entry* entry = lookup(temp);
     if(entry && !entry->is_func){
+        if(is_stat_scope && !entry->stat_flag){
+            yyerror("cannot access static variable " + entry->lexeme + "from non static scope.");
+        }
         $$->type = entry->type[0];
         $$->addr = *$1;
     }
@@ -1905,10 +1999,12 @@ Primary:    PrimaryNoNewArray{
     // cout<<"hey ";
     // cout<<"flag_array "<<flag_array<<endl;
     // cout<<$$->addr<< $1->lexeme + "[" + $1->addr + "]"<<endl;;
+
     if(flag_array){
-        string id = $1->addr;
-        $$->addr = get_temp($1->type);
-        emit("", $1->lexeme + "["+ id + "]", "", $$->addr);
+        $$->addr = $1->lexeme + "[" + $1->addr + "]";
+        // string id = $1->addr;
+        // $$->addr = get_temp($1->type);
+        // emit("", $1->lexeme + "["+ id + "]", "", $$->addr);
         flag_array = 0;
     }
     // $$->type= $1->type;
@@ -2073,35 +2169,23 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         int width = 1;
         CREATE_ST_KEY(temp, $1->lexeme);
         SymbTbl_entry* entry = lookup(temp);
-        string s, w;
-        w=get_temp($1->type.substr(0, $1->type.size()-2));
-        if(arr_d<entry->arr_dims.size()){
-            s = entry->arr_dims[arr_d];
+        string w = get_temp($1->type.substr(0, $1->type.size()-2));
+        emit("*", $3->addr,to_string(Size[$1->type[0]]),w);
+        for(int i=arr_d; i<entry->arr_dims.size(); i++){
+            emit("*", entry->arr_dims[i], w, w);
         }
-    
-        for(int i=arr_d+1; i<entry->arr_dims.size(); i++){
-            emit("*", entry->arr_dims[i], s, w);
-
-        }
-        
-        if(s!="") emit("*", to_string(Size[$1->type[0]]), w, w);
-        else emit("*", to_string(Size[$1->type[0]]), "1", w);
-
-        $$->addr = get_temp($1->type.substr(0, $1->type.size()-2));
+        $$->addr = w;
         $$->lexeme = $1->lexeme;
         $$->first_instr = $1->first_instr;
         
-        emit("*", $3->addr, w, $$->addr);
-        
-        flag_array = 1;
         if(arr_d==entry->arr_dims.size()){
+            flag_array = 1;
             $$->last_instr = code.size()-1;
         }
     }
     else{
         yyerror("Cannot access array of type " + $$->type);
     }
-    // flag_array = 1;
 }
 |               PrimaryNoNewArray '[' Expr ']'{
     vector<treeNode*> v;
@@ -2120,27 +2204,16 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         int width = 1;
         CREATE_ST_KEY(temp, $1->lexeme);
         SymbTbl_entry* entry = lookup(temp);
-        string s;
-        if(arr_d<entry->arr_dims.size()) s = entry->arr_dims[arr_d];
-        // for(int i=arr_d+1; i<entry->arr_dims.size(); i++){
-        //     s = s + " x " + entry->arr_dims[i];
-        //     // width *= stoi(entry->arr_dims[i]);
-        // }
-        $$->type = $1->type.substr(0, $1->type.size()-2);
-        $$->addr = get_temp($1->type.substr(0, $1->type.size()-2));
-        $$->lexeme = $1->lexeme;
-        string w = get_temp($1->type.substr(0, $1->type.size()-2));
-        for(int i=arr_d+1; i<entry->arr_dims.size(); i++){
-            emit("*", entry->arr_dims[i], s, w);
+        string w=get_temp($1->type.substr(0, $1->type.size()-2));
+        emit("*", $3->addr,to_string(Size[$1->type[0]]),w);
 
+        for(int i=arr_d; i<entry->arr_dims.size(); i++){
+            emit("*", entry->arr_dims[i], w, w);
         }
-        
-        if(s!="") emit("*", to_string(Size[$1->type[0]]), s, w);
-        else emit("*", to_string(Size[$1->type[0]]), "1", w);
-
-        string t = get_temp($1->type.substr(0, $1->type.size()-2));
-        emit("*", $3->addr, w, t);
-        emit("+", $1->addr, t, $$->addr);
+        $$->type = $1->type.substr(0, $1->type.size()-2);
+        $$->addr = w;
+        $$->lexeme = $1->lexeme;
+        emit("+", $1->addr, w, $$->addr);
         
         if(arr_d==entry->arr_dims.size()){
             flag_array = 1;
@@ -2215,6 +2288,7 @@ EMP_EXPR:   Expr{
     $$->type = TYPE_VOID;
     $$->first_instr = code.size();
     $$->last_instr = code.size();
+    $$->addr = "";
 }
 ;
 
@@ -2307,9 +2381,11 @@ LIT:    INT{
 
 STAT:   KEY_STATIC{
     $$ = makeleaf("static");
+    stat_flag = 1;
 }
 |       %empty{
     $$ = NULL;
+    stat_flag = 0;
 }
 ;
 
@@ -2349,10 +2425,15 @@ DTYPE:  KEY_INT{
     dType = TYPE_STRING;
     $$->type = dType;
 }
+|       KEY_SHORT{
+    $$ = makeleaf("short");
+    dType = TYPE_SHORT;
+    $$->type = dType;
+}
 ;
 
 
-ClassDeclaration: MOD_EMPTY_LIST KEY_CLASS ID{CREATE_ST_KEY(temp,*$3);temp->type.push_back(TYPE_CLASS); CREATE_ST_ENTRY(temp_entry, "ID", *$3, yylineno, 0); temp_entry->type.push_back(TYPE_CLASS); if(insert_symtbl(temp,temp_entry ) == ALREADY_EXIST) yyerror("Class " + *$3 + " Already Exist!") ;create_symtbl(); temp_entry->table = current; free(temp);} Class_body {
+ClassDeclaration: MOD_EMPTY_LIST KEY_CLASS ID{CREATE_ST_KEY(temp,*$3);temp->type.push_back(TYPE_CLASS); CREATE_ST_ENTRY(temp_entry, "ID", *$3, yylineno, 0); temp_entry->type.push_back(TYPE_CLASS); if(insert_symtbl(temp,temp_entry ) == ALREADY_EXIST) yyerror("Class " + *$3 + " Already Exist!") ;create_symtbl(); temp_entry->table = current; free(temp); stat_flag = 0;} Class_body {
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, makeleaf("class"), "", 1);
@@ -2392,11 +2473,12 @@ Class_body_dec_list :   Class_body_dec_list Class_body_dec{
 Class_body_dec:     Class_DEF_VAR{$$ = $1;}
 |                   MethodDeclaration{$$ = $1;}
 |                   ClassDeclaration{$$ = $1;}
-|                   STAT BLCK{
+|                    STAT { stat_flag = 0;} BLCK{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
-    insertAttr(v, $2, "", 1);
+    insertAttr(v, $3, "", 1);
     $$ = makenode("ClassBody Declaration", v);
+    is_stat_scope = 0;
 }
 |                   ConstructorDeclaration{$$ = $1;}
 ;
@@ -2407,6 +2489,9 @@ Class_DEF_VAR:  MOD_EMPTY_LIST DTYPE VAR_LIST ';'{
     insertAttr(v, $2, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("ClassVariableDeclaration", v);
+
+    stat_flag = 0;
+    mod_flag = PRIVATE_FLAG;
 }
 ;
 MethodDeclaration: MOD_EMPTY_LIST Meth_Head Meth_Body{
@@ -2415,6 +2500,13 @@ MethodDeclaration: MOD_EMPTY_LIST Meth_Head Meth_Body{
     insertAttr(v, $2, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("MethodDeclaration", v);
+
+    if(!flag_return){
+        yywarn("No return statement in function ");
+        emit("RET","","","");
+    }
+    flag_return = 0;
+    is_stat_scope = 0;
 }
 ;
 
@@ -2428,6 +2520,7 @@ Meth_Body:   BLCK{
 
     //sematics
     methKeys.clear();
+    stat_flag = 0;
 }
 ;
 
@@ -2494,14 +2587,20 @@ Meth_decl:  ID '('{retType = dType;} Param_list ')'{
     }
     temp_entry->type.push_back(retType);
     temp_entry->is_func = true;
+    temp_entry->stat_flag = stat_flag;
     ptr_func_def = &(temp_entry->func_is_defined);
+    temp_entry->func_entry_addr = code.size();
     if(insert_symtbl(temp, temp_entry) == ALREADY_EXIST){
         SymbTbl_entry* __temp = lookup(temp);
         if(__temp->func_is_defined){
             yyerror("Redeclaration of function " + *$1);
         }
+        __temp->func_entry_addr = code.size();
         ptr_func_def = &(__temp->func_is_defined);
     }
+    if(stat_flag == 1)
+        is_stat_scope = 1;
+    stat_flag = 0;
 }
 |           ID '('{retType = dType;} ')'{
     vector<treeNode*> v;
@@ -2521,6 +2620,9 @@ Meth_decl:  ID '('{retType = dType;} Param_list ')'{
         }
         ptr_func_def = &(__temp->func_is_defined);
     }
+    if(stat_flag == 1)
+        is_stat_scope = 1;
+    stat_flag = 0;
 }
 ;
 
@@ -2542,6 +2644,8 @@ Param_list: Param_list ',' Param{
     // sematics
     CREATE_ST_ENTRY(temp_entry,"ID", $1->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $1->dim));
+    temp_entry->arr_dims = $1->arr_dims;
+
         
     methKeys.push_back(temp_entry);
 
@@ -2556,6 +2660,7 @@ Param:  DTYPE VAR{
     $$ = makenode("parameter", v);
     $$->lexeme = $2->lexeme;
     $$->dim = $2->dim;
+    $$->arr_dims = $2->arr_dims;
 }
 ;
 
@@ -2596,7 +2701,7 @@ MOD :   KEY_PRIVATE{
     insertAttr(v, makeleaf("static"), "", 1);
     $$ = makenode("modifier", v);
 
-    mod_flag = 0;
+    stat_flag = 1;
 }
 |      KEY_PROTECTED{
     vector<treeNode*> v;
@@ -2607,7 +2712,7 @@ MOD :   KEY_PRIVATE{
 }
 ;
 
-ConstructorHead:    MOD_EMPTY_LIST ID '('  Param_list ')'{
+ConstructorHead:    MOD_EMPTY_LIST ID  '('  Param_list ')'{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, makeleaf("ID(" + *$2 + ")"), "", 1);
@@ -2641,7 +2746,9 @@ ConstructorHead:    MOD_EMPTY_LIST ID '('  Param_list ')'{
         yyerror("No return type for the function " + *$2 );
     }
     free(temp);
-    
+    if(stat_flag)
+    is_stat_scope = 1;
+    stat_flag = 0;
     
 }
 |                   MOD_EMPTY_LIST ID '(' ')'{
@@ -2672,6 +2779,10 @@ ConstructorHead:    MOD_EMPTY_LIST ID '('  Param_list ')'{
     }
     free(temp);
     retType = TYPE_NORET;
+    if(stat_flag)
+    is_stat_scope = 1;
+    stat_flag = 0;
+
 }
 ;
 
@@ -2680,6 +2791,7 @@ ConstructorDeclaration : ConstructorHead BLCK{
     insertAttr(v, $1, "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("construtor", v);
+    is_stat_scope = 0;
 
 }
 ;
@@ -2693,9 +2805,9 @@ int main(int argc, char** argv) {
         return 0;
     }
     char* infile = argv[1];
-    char* outfile = strdup(argv[0]);
-    outfile = strcat(outfile, ".dot");
+    char* dotfile_path = NULL;
     bool verbose = false;
+    string threeac_outfile;
     for(int i=1;i<argc;i++){
         
         /* cout<<i<<endl; */
@@ -2704,8 +2816,8 @@ int main(int argc, char** argv) {
             infile = argv[i] + 8;
         }
         /* if argv contains --output= take it as output file */
-        else if(strncmp(argv[i], "--output=", 9) == 0){
-            outfile = argv[i] + 9;
+        else if(strncmp(argv[i], "--dot=", 6) == 0){
+            dotfile_path = argv[i] + 6;
         }
         /* if argv is --verbose */
         else if(strcmp(argv[i], "--verbose") == 0){
@@ -2716,7 +2828,7 @@ int main(int argc, char** argv) {
             cout << "Usage: " << argv[0] << " path/to/input.java [other options]" << endl;
             cout << "Other options:" << endl;
             cout << "  --input=FILE\t\tRead input from FILE" << endl;
-            cout << "  --output=FILE\t\tWrite output to FILE" << endl;
+            cout << "  --dot=FILE\t\tWrite AST output to FILE" << endl;
             cout << "  --verbose\t\tPrint verbose output" << endl;
             cout << "  --help\t\tPrint this help message" << endl;
             return 0;
@@ -2744,17 +2856,17 @@ int main(int argc, char** argv) {
     if(verbose){
         cout<<"Opening output file..."<<endl;
     }
-    dotfile = fopen(outfile, "w");
-    if(!dotfile){
-        cout <<"ERROR: "  << "Could not open file: "<< outfile << endl;
-        return -1;
-    }
+    if(dotfile_path)
+    dotfile = fopen(dotfile_path, "w");
+    else
+    dotfile = NULL;
 
     /* start parsing */
     if(verbose){
         cout<<"Started Parsing"<<endl;
     }
     beginAST();
+    initSymbolTable();
     do {
         yyparse();
     } while (!feof(yyin));
@@ -2763,7 +2875,10 @@ int main(int argc, char** argv) {
     print_code();
     if(verbose){
         cout<<"Parsing Complete"<<endl;
-        cout<<"Output written to "<<outfile<<endl;
+        cout<<"Output written to "<<dotfile_path<<endl;
     }
-  
+    if(dotfile)
+    fclose(dotfile);
+
+    return 0;
 }

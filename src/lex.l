@@ -49,6 +49,7 @@ ESCAPE_SEQUENCE "\\b"|"\\s"|"\\t"|"\\n"|"\\f"|"\\r"|"\\\""|"\\\'"|"\\\\"
 "int" return KEY_INT;
 "long" return KEY_LONG;
 "char" return KEY_CHAR;
+"short" return KEY_SHORT;
 "String" return KEY_STRING;
 "float" return KEY_FLOAT;
 "private" return KEY_PRIVATE;
@@ -59,7 +60,6 @@ ESCAPE_SEQUENCE "\\b"|"\\s"|"\\t"|"\\n"|"\\f"|"\\r"|"\\\""|"\\\'"|"\\\\"
 "class" return KEY_CLASS;
 "break" return KEY_BREAK;
 "continue" return KEY_CONTINUE;
-"super" return KEY_SUPER;
 "import" return KEY_IMPORT;
 "new" return KEY_NEW;
 "switch" return KEY_SWITCH;

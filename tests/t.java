@@ -7,22 +7,29 @@ public class PM_Chutiya {
     //     c=a+b;
     //     return c;
     // }
-    
-    
-    int i = 1;
-    int j = 2;
-    int k = 3;
-    int ok(int arr[][], int b){
-        int a=arr[i][j];
-        int c = a+b;
-        return c;
+    // int f(){
+    //     int arr[2][3][4];
+    //     // int a = arr[1][1];
+    //     arr[1][3][1] = 1;
+    // } 
+    // int i,j;
+    int ok(int a){
+        // int a=arr[0][1];
+        // int c = a+b;
+        // float d = a + b;
+        System.out.println("Hello World" + 9 + "hjhg");
+        // return c;
     }
-    int f(){
-        int arr[5][1];
-        arr[j][i] = 10;
-        int k = arr[3][2];
-        int a = ok(arr, 1);
-    }
+    // int f(){
+    //     int arr[5][1] = new int[5][1];
+    //     arr[j][i] = 10;
+    //     int k = arr[3][2];
+    //     int a = ok(arr, 1);
+    //     for(int i=0;i<10;i++){
+    //         if(i>5)arr[1][2]=1;
+    //         else arr[1][2]=2;
+    //     }
+    // }
     // void main(){
 
     //     int ar[19];

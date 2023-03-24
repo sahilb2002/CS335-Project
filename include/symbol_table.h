@@ -14,6 +14,8 @@
 #define TYPE_LONG "LONG"
 #define TYPE_CHAR "CHAR"
 #define TYPE_VOID "VOID"
+#define TYPE_SHORT "SHORT"
+
 
 #define TYPE_BOOL "BOOL"
 
@@ -47,7 +49,9 @@ struct SymbTbl_entry{
     bool is_func;
     unsigned int lineno;
     int mod_flag;
+    int stat_flag;
     bool func_is_defined;
+    int func_entry_addr;
     SymbolTable* table;
     SymbTbl_entry* obj_entry;
     string addr;
@@ -82,6 +86,7 @@ int insert_symtbl(SymbTbl_key* key, SymbTbl_entry* entry);
 string get_type(string& dType, int dim);
 
 void printSymbolTable(SymbolTable* tbl);
+void initSymbolTable();
 
 bool operator<(const SymbTbl_key& a, const SymbTbl_key& b);
 

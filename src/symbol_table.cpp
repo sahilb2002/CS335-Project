@@ -1,5 +1,6 @@
 #include<symbol_table.h>
 #include<iostream>
+#include<fstream>
 
 using namespace std;
 SymbolTable *current = new SymbolTable(0, NULL);
@@ -59,13 +60,20 @@ SymbolTable* create_symtbl(){
 
 // }
 void printSymbolTable(SymbolTable* tbl){
+    string path = "SymbolTable" + to_string(tbl->tbl_id) +".csv";
+    fstream SymbolTableFile = fstream(path, ios::out);
     cout<<"Symbol Table ID: "<<tbl->tbl_id<<endl;
+    //SymbolTableFile<<"Symbol Table ID: "<<tbl->tbl_id<<endl;
     for(auto p:tbl->table){
+        if(p.second->lexeme[0] == '#') continue;
         cout<< p.second->lexeme << " lineno:" <<p.second->lineno<<" Type: "<<p.second->type[0]<<" ";
+        SymbolTableFile<< p.second->lexeme << "," <<p.second->lineno<<","<<p.second->category<<","<<p.second->type[0]<<"";
         for(auto it:p.second->arr_dims){
             cout<<it<<" ";
+            SymbolTableFile<<it<<" ";
         }
         cout << endl;
+        SymbolTableFile << endl;
     }
     for(auto child:tbl->children){
         printSymbolTable(child);
@@ -77,4 +85,35 @@ string get_type(string& dType, int dim){
         type += TYPE_ARRAY;
     }
     return type;
+}
+
+void initSymbolTable(){
+    CREATE_ST_KEY(sysClass, "system");
+    sysClass->type.push_back(TYPE_CLASS);
+    CREATE_ST_ENTRY(sysClassent,"ID","system",0,PUBLIC_FLAG);
+    sysClassent->type.push_back(TYPE_CLASS);
+
+    insert_symtbl(sysClass, sysClassent);
+    CREATE_ST_KEY(sysKey, "System");
+    CREATE_ST_ENTRY(sysKeyent,"ID","System",0,PUBLIC_FLAG);
+    sysKeyent->type.push_back("system");
+
+    insert_symtbl(sysKey, sysKeyent);
+
+    create_symtbl();
+    sysClassent->table = current;
+    CREATE_ST_KEY(sysOut, "out");
+    CREATE_ST_ENTRY(sysOutent,"ID","out",0,PUBLIC_FLAG);
+    sysOutent->type.push_back("system");
+    insert_symtbl(sysOut, sysOutent);
+
+    CREATE_ST_KEY(sysprint, "println");
+    CREATE_ST_ENTRY(sysprintent,"ID","println",0,PUBLIC_FLAG);
+    sysprintent->type.push_back(TYPE_STRING);
+    sysprintent->type.push_back(TYPE_VOID);
+    sysprintent->is_func = true;
+    insert_symtbl(sysprint, sysprintent);
+
+
+    current = current->parent;
 }

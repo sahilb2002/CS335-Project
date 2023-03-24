@@ -9,8 +9,11 @@ using namespace std;
 #define GOTO "goto"
 #define IF "if"
 #define CALL "call"
+#define IFFALSE "ifFalse"
+#define ASSERT_FAIL "Raise Assersion failure"
 
 typedef string qel_t;
+
 
 struct quad{
     
