@@ -1738,6 +1738,16 @@ AdditiveExpression:         MultiplicativeExpression{$$ = $1;}
 
     //typeChecking
     $$->type = addCheck($1->type, $3->type,"-");
+    if($$->type != $1->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
+    if($$->type != $2->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
 
     //3ac
     $$->addr = get_temp($$->type);
@@ -2807,7 +2817,7 @@ int main(int argc, char** argv) {
     char* infile = argv[1];
     char* dotfile_path = NULL;
     bool verbose = false;
-    string threeac_outfile;
+    char* threeac_outfile = "TAC.txt";
     for(int i=1;i<argc;i++){
         
         /* cout<<i<<endl; */
@@ -2819,10 +2829,14 @@ int main(int argc, char** argv) {
         else if(strncmp(argv[i], "--dot=", 6) == 0){
             dotfile_path = argv[i] + 6;
         }
+        else if(strcmp(argv[i], "--3ac=", 6) == 0){
+            threeac_outfile = argv[i] + 6;
+        }
         /* if argv is --verbose */
         else if(strcmp(argv[i], "--verbose") == 0){
             verbose = true;
         }
+
         /* if argv is --help print help message and exit.  */
         else if(strcmp(argv[i], "--help") == 0){
             cout << "Usage: " << argv[0] << " path/to/input.java [other options]" << endl;
@@ -2831,6 +2845,7 @@ int main(int argc, char** argv) {
             cout << "  --dot=FILE\t\tWrite AST output to FILE" << endl;
             cout << "  --verbose\t\tPrint verbose output" << endl;
             cout << "  --help\t\tPrint this help message" << endl;
+            cout << "  --3ac=FILE\t\tWrite 3AC output to FILE" << endl;
             return 0;
         }
         /* else print error */
@@ -2872,7 +2887,7 @@ int main(int argc, char** argv) {
     } while (!feof(yyin));
     endAST();
     printSymbolTable(current);
-    print_code();
+    print_code(threeac_outfile);
     if(verbose){
         cout<<"Parsing Complete"<<endl;
         cout<<"Output written to "<<dotfile_path<<endl;

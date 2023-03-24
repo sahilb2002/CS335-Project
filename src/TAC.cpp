@@ -24,10 +24,10 @@ qel_t get_temp(string type){
     return temp;
 }
 
-void print_code(){
-    FILE *tac = fopen("tac.txt", "w");
+void print_code(char* outfile){
+    FILE *tac = fopen(outfile, "w");
     if(tac == NULL){
-        cout << "Error opening file" << endl;
+        cout << "Error opening file" << outfile << endl;
         exit(1);
     }
 
@@ -50,10 +50,13 @@ void print_code(){
         }
         else{
             cout << i << " : " << code[i].op <<" " << code[i].arg1<<" " <<code[i].arg2;
-            if(code[i].idx != -1)
-            cout<<" "<<code[i].idx;
+            fprintf(tac, "%d : %s %s %s", i, code[i].op.c_str(), code[i].arg1.c_str(), code[i].arg2.c_str());
+            if(code[i].idx != -1){
+                cout<<" "<<code[i].idx;
+                fprintf(tac, " %d", code[i].idx);
+            }
             cout<<endl;
-            fprintf(tac, "%d : %s %s %s %d\n", i, code[i].op.c_str(), code[i].arg1.c_str(), code[i].arg2.c_str(), code[i].idx);
+            fprintf(tac, "\n");
         }
 
     }
