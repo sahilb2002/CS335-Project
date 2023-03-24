@@ -62,17 +62,17 @@ SymbolTable* create_symtbl(){
 void printSymbolTable(SymbolTable* tbl){
     string path = "SymbolTable" + to_string(tbl->tbl_id) +".csv";
     fstream SymbolTableFile = fstream(path, ios::out);
-    cout<<"Symbol Table ID: "<<tbl->tbl_id<<endl;
+    // cout<<"Symbol Table ID: "<<tbl->tbl_id<<endl;
     //SymbolTableFile<<"Symbol Table ID: "<<tbl->tbl_id<<endl;
     for(auto p:tbl->table){
         if(p.second->lexeme[0] == '#') continue;
-        cout<< p.second->lexeme << " lineno:" <<p.second->lineno<<" Type: "<<p.second->type[0]<<" ";
+        // cout<< p.second->lexeme << " lineno:" <<p.second->lineno<<" Type: "<<p.second->type[0]<<" ";
         SymbolTableFile<< p.second->lexeme << "," <<p.second->lineno<<","<<p.second->category<<","<<p.second->type[0]<<"";
         for(auto it:p.second->arr_dims){
-            cout<<it<<" ";
+            // cout<<it<<" ";
             SymbolTableFile<<it<<" ";
         }
-        cout << endl;
+        // cout << endl;
         SymbolTableFile << endl;
     }
     for(auto child:tbl->children){

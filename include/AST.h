@@ -15,6 +15,7 @@ typedef struct treeNode{
 	string type;
 	qel_t addr;
 	vector<string> typevec;
+	vector<string> arg_addr;
 	vector<treeNode*> children;
 	vector<string> arr_dims;
 	int static_flag;

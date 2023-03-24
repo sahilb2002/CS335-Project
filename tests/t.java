@@ -13,26 +13,33 @@ public class PM_Chutiya {
     //     arr[1][3][1] = 1;
     // } 
     // int i,j;
-    int ok(int b){
+    void ok__(int y){
+        int x=  y;
+    }
+    int ok(int d);
+    int foo(int i, float j){
+        i=j;
+        ok(true);
+        return i;
+    }
+    int ok(int d){
         // int a=arr[0][1];
         // int c = a+b;
         // float d = a + b;
         // System.out.println("Hello World" + 9 + "hjhg");
-        final int a[] = {10,20,30};
-        int c = 1;
-        c = 10;
-        a[1] = 11;
+        // int a = 1;
+        // int b = 1.1;
+        // int c = a||b;
+        // int b;
+        // float c;
+        // float e = b + c;
+        float b = foo(1, 1);
         // return c;
     }
     // int f(){
-    //     int arr[5][1] = new int[5][1];
-    //     arr[j][i] = 10;
-    //     int k = arr[3][2];
-    //     int a = ok(arr, 1);
-    //     for(int i=0;i<10;i++){
-    //         if(i>5)arr[1][2]=1;
-    //         else arr[1][2]=2;
-    //     }
+    //     int d;
+    //     float t;
+    //     d = ok(t);
     // }
     // void main(){
 

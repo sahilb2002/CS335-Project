@@ -741,7 +741,7 @@ DEF_VAR: STAT FIN DTYPE VAR_LIST{
     stat_flag = 0;
     fin_flag = 0;
 }
-|       KEY_STATIC {stat_flag = 1;} ID{CREATE_ST_KEY(temp, *$3); temp->type.push_back(TYPE_CLASS); if(lookup(temp)){dType = *$3;} else {yyerror(*$3 + "doesn't name a type");} } VAR_LIST{
+|       KEY_STATIC {stat_flag = 1;} ID{CREATE_ST_KEY(temp, *$3); temp->type.push_back(TYPE_CLASS); if(lookup(temp)){dType = *$3;} else {yyerror(*$3 + "doesn't name a type");} free(temp); } VAR_LIST{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("static"),"",1);
     insertAttr(v,makeleaf("ID(" + *$3 + ")"), "", 1 );
@@ -751,8 +751,9 @@ DEF_VAR: STAT FIN DTYPE VAR_LIST{
     $$->first_instr = $5->first_instr;
     $$->last_instr = $5->last_instr;
     stat_flag = 0;
+
 }
-|        ID{CREATE_ST_KEY(temp, *$1); temp->type.push_back(TYPE_CLASS); if(lookup(temp)){dType = *$1;} else {yyerror(*$1 + "doesn't name a type");} } VAR_LIST{
+|        ID{CREATE_ST_KEY(temp, *$1); temp->type.push_back(TYPE_CLASS); if(lookup(temp)){dType = *$1;} else {yyerror(*$1 + "doesn't name a type");} free(temp); } VAR_LIST{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, $3, "", 1);
@@ -864,7 +865,14 @@ VARA:   ID '=' Expr{
     if(!can_be_TypeCasted($3->type, dType)){
         yyerror("Type Mismatch " + $3->type + " cannot be typecasted to " + dType);
     }
-    else emit("",$3->addr,"",*$1);
+
+    if(dType != $3->type){
+        string temp = get_temp(dType);
+        emit($3->type + "TO" + dType, $3->addr, "", temp);
+        $3->addr = temp;
+    }
+    emit("",$3->addr,"",*$1);
+    $$->type = dType;
 
     $$->first_instr = $3->first_instr;
     $$->last_instr = code.size()-1;
@@ -1270,12 +1278,21 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
 
         SymbTbl_entry* entry = lookup(temp);
         if(entry){
+            // typechecking
             if(compareMethTypes(entry->type, $3->typevec)){
                 $$->type = *(entry->type.rbegin());
                 if(is_stat_scope && !entry->stat_flag){
                     yyerror("cannot call non static function " + entry->lexeme + " from static scope");
                 }
                 $$->addr = get_temp($$->type);
+                for(int i=0;i<entry->type.size()-1;i++){
+                    if(entry->type[i] != $3->typevec[i]){
+                        string temp = get_temp(entry->type[i]);
+                        emit($3->typevec[i] + "TO" + entry->type[i], "", $3->arg_addr[i], temp);
+                        $3->arg_addr[i] = temp;
+                    }
+                    emit("param", $3->arg_addr[i], "", "");
+                }
                 emit("call", $1->lexeme + ", " + to_string($3->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
             }
             else{
@@ -1285,6 +1302,7 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
         else{
             yyerror("method " + $1->lexeme + " not found");
         }
+        free(temp);
     }
     else{
         // ExpressionName is ID.ID.ID...
@@ -1297,27 +1315,45 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
             auto it = classTable->table.find(*classTemp);
             if(it != classTable->table.end()){
                 SymbTbl_entry* entry = it->second;
-                if(entry->mod_flag == PUBLIC_FLAG){
+
+                if(compareMethTypes(entry->type, $3->typevec)){
                     $$->type = *(entry->type.rbegin());
                     if(is_stat_scope && !entry->stat_flag){
                         yyerror("cannot call non static function " + entry->lexeme + " from static scope");
                     }
                     $$->addr = get_temp($$->type);
-                    emit("call", $1->typevec[1] + ", " + to_string($3->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
+                    for(int i=0;i<entry->type.size();i++){
+                        if(entry->type[i] != $3->typevec[i]){
+                            emit($3->typevec[i] + "TO" + entry->type[i], "", $3->arg_addr[i], $3->arg_addr[i]);
+                        }
+                        emit("param", $3->arg_addr[i], "", "");
+                    }
+                    if(entry->mod_flag == PUBLIC_FLAG){
+                        $$->type = *(entry->type.rbegin());
+                        $$->addr = get_temp($$->type);
+                        emit("call", $1->typevec[1] + ", " + to_string($3->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
+                    }
+                    else{
+                        yyerror("Non-Public member " + $1->typevec[1] + " of class " + $1->typevec[0] + " cannot be accessed");
+                    }
                 }
                 else{
-                    yyerror("Non-Public member " + $1->typevec[1] + " of class " + $1->typevec[0] + " cannot be accessed");
+                    yyerror("Invalid Argument Types for Method " + $1->lexeme);
                 }
+
             }
             else {
                 yyerror("No method " + $1->typevec[1] + " found in class " + $1->typevec[0]);
 
             }
+            free(classTemp);
         }
         else{
             yyerror("No class " + $1->type + " found");
         }
+        free(temp);
     }
+    $$->last_instr = code.size()-1;
 }
 ;
 
@@ -1341,6 +1377,19 @@ Assignment: LeftHandSide AssignmentOperator Expr{
     else{
         yyerror("Type Mismatched cannot cast " + $3->type + " to " + $1->type);
     }
+
+    if($$->type != $1->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
+    if($$->type != $3->type){
+        string temp = get_temp($$->type);
+        emit($3->type + "TO" + $$->type, $3->addr, "", temp);
+        $3->addr = temp;
+    }
+    
+    
 
     $$->first_instr = $1->first_instr;
     $$->last_instr = code.size();
@@ -1386,10 +1435,12 @@ ExpressionName:  AmbiguousName '.' ID{
             $$->type = TYPE_ERROR;
 
         }
+        free(classTemp);
     }
     else{
         yyerror("No class " + $1->type + " found");
     } 
+    free(temp);
 
 
 }
@@ -1409,6 +1460,8 @@ ExpressionName:  AmbiguousName '.' ID{
     else{
         $$->type = TYPE_ERROR;
     }
+
+    free(temp);
 }
 ;
 AmbiguousName:  ID  {
@@ -1422,7 +1475,8 @@ AmbiguousName:  ID  {
     }
     else{
         yyerror("undeclared variable " + *$1 );
-    } 
+    }
+    free(temp);
 }
 |               AmbiguousName '.' ID{
     $$ = new treeNode;
@@ -1450,10 +1504,12 @@ AmbiguousName:  ID  {
         else {
             yyerror("No member " + *$3 + " in class " + $1->type);
         }
+        free(classTemp);
     }
     else{
         yyerror("No class " + $1->type + " found");
     } 
+    free(temp);
 }
 ;
 
@@ -1486,18 +1542,37 @@ LeftHandSide:   ExpressionName{
 ;
 
 ConditionalExpression:  ConditionalOrExpression{$$ = $1;}
-|                       ConditionalOrExpression '?' Expr ':' ConditionalExpression{
+|                       ConditionalOrExpression '?'{emit(IFFALSE, $1->addr, GOTO, ""); $1->falselist = code.size()-1;} Expr ':' {$1->addr = get_temp($4->type); emit("", $4->addr, "", $1->addr);emit(GOTO, "","",""); $4->truelist = code.size()-1;} START_INSTR ConditionalExpression{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
-    insertAttr(v, $3, "", 1);
-    insertAttr(v, $5, "", 1);
+    insertAttr(v, $4, "", 1);
+    insertAttr(v, $8, "", 1);
     $$ = makenode("?:", v);
 
     //type checking
-    if($1->type == TYPE_BOOL)$$->type = maxType($3->type, $5->type);
+    emit("", $8->addr, "", $1->addr);
+    $$->addr = $1->addr;
+    
+    if($1->type == TYPE_BOOL)
+        $$->type = maxType($4->type, $8->type);
     else{
         yyerror("TypeError: Conditional Expression: Type Mismatch");
     }
+
+    backPatch($1->falselist, $7->last_instr);
+    backPatch($4->truelist, code.size());
+    if($$->type != $4->type){
+        string temp = get_temp($$->type);
+        emit($4->type + "TO" + $$->type, $$->addr, "", temp);
+        $$->addr = temp;
+    }
+    else if($$->type != $8->type){
+        string temp = get_temp($$->type);
+        emit($8->type + "TO" + $$->type, $$->addr, "", temp);
+        $$->addr = temp;
+    }
+
+    $$->last_instr = code.size()-1;
 }
 ;
 
@@ -1510,6 +1585,16 @@ ConditionalOrExpression:    ConditionalAndExpression{$$ = $1;}
 
     //type checking
     $$->type = relCheck($1->type, $3->type);
+    if($$->type != $1->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
+    if($$->type != $3->type){
+        string temp = get_temp($$->type);
+        emit($3->type + "TO" + $$->type, $3->addr, "", temp);
+        $3->addr = temp;
+    }
 
     //3ac
     $$->addr = get_temp($$->type);
@@ -1528,6 +1613,16 @@ ConditionalAndExpression:   InclusiveOrExpression{$$ = $1;}
 
     //type checking
     $$->type = relCheck($1->type, $3->type);
+    if($$->type != $1->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
+    if($$->type != $3->type){
+        string temp = get_temp($$->type);
+        emit($3->type + "TO" + $$->type, $3->addr, "", temp);
+        $3->addr = temp;
+    }
 
     // 3ac
     $$->addr = get_temp($$->type);
@@ -1547,6 +1642,16 @@ InclusiveOrExpression:      ExclusiveOrExpression{$$ = $1;}
 
     //type checking
     $$->type = onlyIntCheck($1->type, $3->type, "|");
+    if($$->type != $1->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
+    if($$->type != $3->type){
+        string temp = get_temp($$->type);
+        emit($3->type + "TO" + $$->type, $3->addr, "", temp);
+        $3->addr = temp;
+    }
 
     //3ac
     $$->addr = get_temp($$->type);
@@ -1565,6 +1670,16 @@ ExclusiveOrExpression:      AndExpression{$$ = $1;}
 
     //type checking
     $$->type = onlyIntCheck($1->type, $3->type, "^");
+    if($$->type != $1->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
+    if($$->type != $3->type){
+        string temp = get_temp($$->type);
+        emit($3->type + "TO" + $$->type, $3->addr, "", temp);
+        $3->addr = temp;
+    }
 
     //3ac
     $$->addr = get_temp($$->type);
@@ -1583,6 +1698,16 @@ AndExpression:              EqualityExpression{$$ = $1;}
 
     //type checking
     $$->type = onlyIntCheck($1->type, $3->type,"&" );
+    if($$->type != $1->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
+    if($$->type != $3->type){
+        string temp = get_temp($$->type);
+        emit($3->type + "TO" + $$->type, $3->addr, "", temp);
+        $3->addr = temp;
+    }
     
     //3ac
     $$->addr = get_temp($$->type);
@@ -1601,6 +1726,16 @@ EqualityExpression:         RelationalExpression{$$ = $1;}
     
     //type checking
     $$->type = relCheck($1->type, $3->type);
+    if($$->type != $1->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
+    if($$->type != $3->type){
+        string temp = get_temp($$->type);
+        emit($3->type + "TO" + $$->type, $3->addr, "", temp);
+        $3->addr = temp;
+    }
 
     //3ac
     $$->addr = get_temp($$->type);
@@ -1616,6 +1751,16 @@ EqualityExpression:         RelationalExpression{$$ = $1;}
 
     //type checking
     $$->type = relCheck($1->type, $3->type);
+    if($$->type != $1->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
+    if($$->type != $3->type){
+        string temp = get_temp($$->type);
+        emit($3->type + "TO" + $$->type, $3->addr, "", temp);
+        $3->addr = temp;
+    }
 
     //3ac
     $$->addr = get_temp($$->type);
@@ -1634,6 +1779,16 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
 
     //type checking
     $$->type = relCheck($1->type, $3->type);
+    if($$->type != $1->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
+    if($$->type != $3->type){
+        string temp = get_temp($$->type);
+        emit($3->type + "TO" + $$->type, $3->addr, "", temp);
+        $3->addr = temp;
+    }
 
     //3ac
     $$->addr = get_temp($$->type);
@@ -1649,6 +1804,16 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
 
     //type checking
     $$->type = relCheck($1->type, $3->type);
+    if($$->type != $1->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
+    if($$->type != $3->type){
+        string temp = get_temp($$->type);
+        emit($3->type + "TO" + $$->type, $3->addr, "", temp);
+        $3->addr = temp;
+    }
 
     //3ac
     $$->addr = get_temp($$->type);
@@ -1664,6 +1829,16 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
 
     //type checking
     $$->type = relCheck($1->type, $3->type);
+    if($$->type != $1->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
+    if($$->type != $3->type){
+        string temp = get_temp($$->type);
+        emit($3->type + "TO" + $$->type, $3->addr, "", temp);
+        $3->addr = temp;
+    }
 
     //3ac
     $$->addr = get_temp($$->type);
@@ -1679,6 +1854,16 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
 
     //type checking
     $$->type = relCheck($1->type, $3->type);
+    if($$->type != $1->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
+    if($$->type != $3->type){
+        string temp = get_temp($$->type);
+        emit($3->type + "TO" + $$->type, $3->addr, "", temp);
+        $3->addr = temp;
+    }
 
     //3ac
     $$->addr = get_temp($$->type);
@@ -1697,6 +1882,16 @@ ShiftExpression:            AdditiveExpression{$$ = $1;}
 
     //type checking
     $$->type = onlyIntCheck($1->type, $3->type, "<<");
+    if($$->type != $1->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
+    if($$->type != $3->type){
+        string temp = get_temp($$->type);
+        emit($3->type + "TO" + $$->type, $3->addr, "", temp);
+        $3->addr = temp;
+    }
 
     //3ac
     $$->addr = get_temp($$->type);
@@ -1712,6 +1907,16 @@ ShiftExpression:            AdditiveExpression{$$ = $1;}
 
     //type checking
     $$->type = onlyIntCheck($1->type, $3->type, ">>");
+    if($$->type != $1->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
+    if($$->type != $3->type){
+        string temp = get_temp($$->type);
+        emit($3->type + "TO" + $$->type, $3->addr, "", temp);
+        $3->addr = temp;
+    }
 
     //3ac
     $$->addr = get_temp($$->type);
@@ -1727,6 +1932,16 @@ ShiftExpression:            AdditiveExpression{$$ = $1;}
 
     //type checking
     $$->type = onlyIntCheck($1->type, $3->type, ">>>");
+    if($$->type != $1->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
+    if($$->type != $3->type){
+        string temp = get_temp($$->type);
+        emit($3->type + "TO" + $$->type, $3->addr, "", temp);
+        $3->addr = temp;
+    }
     
     //3ac
     $$->addr = get_temp($$->type);
@@ -1745,11 +1960,20 @@ AdditiveExpression:         MultiplicativeExpression{$$ = $1;}
 
     //typeChecking
     $$->type = addCheck($1->type, $3->type,"+");
-
+    if($$->type != $1->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
+    if($$->type != $3->type){
+        string temp = get_temp($$->type);
+        emit($3->type + "TO" + $$->type, $3->addr, "", temp);
+        $3->addr = temp;
+    }
     //3ac
     $$->addr = get_temp($$->type);
     $$->first_instr = $1->first_instr;
-    emit("+", $1->addr, $3->addr, $$->addr);
+    emit("+" + $$->type, $1->addr, $3->addr, $$->addr);
     $$->last_instr = code.size()-1;
 }
 |                           AdditiveExpression '-' MultiplicativeExpression{
@@ -1788,11 +2012,20 @@ MultiplicativeExpression:   UnaryExpression{$$ = $1;}
 
     //typeChecking
     $$->type = multCheck($1->type, $3->type,"*");
-
+    if($$->type != $1->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
+    if($$->type != $3->type){
+        string temp = get_temp($$->type);
+        emit($3->type + "TO" + $$->type, $3->addr, "", temp);
+        $3->addr = temp;
+    }
     //3ac
     $$->addr = get_temp($$->type);
     $$->first_instr = $1->first_instr;
-    emit("*", $1->addr, $3->addr, $$->addr);
+    emit("*" + $$->type, $1->addr, $3->addr, $$->addr);
     $$->last_instr = code.size()-1;
 }
 |                           MultiplicativeExpression '/' UnaryExpression{
@@ -1803,11 +2036,20 @@ MultiplicativeExpression:   UnaryExpression{$$ = $1;}
 
     //typeChecking
     $$->type = multCheck($1->type, $3->type,"/");
-
+    if($$->type != $1->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
+    if($$->type != $3->type){
+        string temp = get_temp($$->type);
+        emit($3->type + "TO" + $$->type, $3->addr, "", temp);
+        $3->addr = temp;
+    }
     //3ac
     $$->addr = get_temp($$->type);
     $$->first_instr = $1->first_instr;
-    emit("/", $1->addr, $3->addr, $$->addr);
+    emit("/"+$$->type, $1->addr, $3->addr, $$->addr);
     $$->last_instr = code.size()-1;
 }
 |                           MultiplicativeExpression '%' UnaryExpression{
@@ -1818,11 +2060,21 @@ MultiplicativeExpression:   UnaryExpression{$$ = $1;}
 
     //typeChecking
     $$->type = onlyIntCheck($1->type, $3->type, "%");
+    if($$->type != $1->type){
+        string temp = get_temp($$->type);
+        emit($1->type + "TO" + $$->type, $1->addr, "", temp);
+        $1->addr = temp;
+    }
+    if($$->type != $3->type){
+        string temp = get_temp($$->type);
+        emit($3->type + "TO" + $$->type, $3->addr, "", temp);
+        $3->addr = temp;
+    }
     
     //3ac
     $$->addr = get_temp($$->type);
     $$->first_instr = $1->first_instr;
-    emit("%", $1->addr, $3->addr, $$->addr);
+    emit("%"+$$->type, $1->addr, $3->addr, $$->addr);
     $$->last_instr = code.size()-1;
 }
 ;
@@ -2016,10 +2268,12 @@ FieldAccess:    Primary '.' ID{
         else {
             yyerror("No member " + *$3 + " in class " + $1->type);
         }
+        free(classTemp);
     }
     else{
         yyerror("No class " + $1->type + " found");
     } 
+    free(temp);
 }
 ;
 
@@ -2341,7 +2595,8 @@ ARG_LISTp:   ARG_LISTp ',' Expr{
     // type checking
     $$ = $1;
     $$->typevec.push_back($3->type);
-    emit("param", $3->addr, "", "");
+    $$->arg_addr.push_back($3->addr);
+    // emit("param", $3->addr, "", "");
 }
 |           Expr{
     vector<treeNode*> v;
@@ -2350,7 +2605,8 @@ ARG_LISTp:   ARG_LISTp ',' Expr{
 
     // type checking
     $$->typevec.push_back($1->type);
-    emit("param", $1->addr, "", "");
+    $$->arg_addr.push_back($1->addr);
+    // emit("param", $1->addr, "", "");
 }
 ;
 

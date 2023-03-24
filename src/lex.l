@@ -72,7 +72,7 @@ ESCAPE_SEQUENCE "\\b"|"\\s"|"\\t"|"\\n"|"\\f"|"\\r"|"\\\""|"\\\'"|"\\\\"
 
 
 
-{BOOLEAN} return BOOL;
+{BOOLEAN} {yylval.str = new std::string(yytext); return BOOL;};;
 
 
 
