@@ -226,12 +226,13 @@ BLCK:   '{' {create_symtbl();} BODY '}'{
     $$->first_instr = $3->first_instr;
     $$->last_instr = $3->last_instr;
 }
-|       '{' '}'{
+|       '{' {create_symtbl();} '}'{
     vector<treeNode*> v;
     insertAttr(v, NULL, "{", 0);
     insertAttr(v, NULL, "}", 0);
     $$ = makenode("Block", v);
 
+    current = current->parent;
     $$->first_instr = code.size();
     $$->last_instr = code.size()-1;
 }
@@ -770,7 +771,7 @@ VARA:   ID '=' Expr{
     if(!can_be_TypeCasted($3->type, dType)){
         yyerror("Type Mismatch " + $3->type + " cannot be typecasted to " + dType);
     }
-    emit("",$3->addr,"",*$1);
+    else emit("",$3->addr,"",*$1);
 
     $$->first_instr = $3->first_instr;
     $$->last_instr = code.size()-1;
@@ -1176,7 +1177,11 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
 
         SymbTbl_entry* entry = lookup(temp);
         if(entry){
-            if(compareMethTypes(entry->type, $3->typevec))$$->type = *(entry->type.rbegin());
+            if(compareMethTypes(entry->type, $3->typevec)){
+                $$->type = *(entry->type.rbegin());
+                $$->addr = get_temp($1->lexeme);
+                emit("call", $1->lexeme + ", " + to_string($3->typevec.size()), "", $$->addr);
+            }
             else{
                 yyerror("Invalid Argument Types for Method " + $1->lexeme);
             }
@@ -1238,8 +1243,8 @@ Assignment: LeftHandSide AssignmentOperator Expr{
 
     $$->first_instr = $1->first_instr;
     $$->last_instr = code.size();
-    emit("", $3->addr, "", $1->addr); 
-
+    emit("", $3->addr, "", $1->addr);
+    flag_array = 0; 
 }
 ;
 
@@ -1360,6 +1365,7 @@ LeftHandSide:   ExpressionName{
 |               ArrayAccess{
                                 $$ = $1;
                                 $$->addr = $1->lexeme + "[" + $1->addr + "]";
+                                flag_array = 0;
 }
 ;
 
@@ -1896,7 +1902,9 @@ Primary:    PrimaryNoNewArray{
     $$ = $1;
     // $$ = new treeNode;
     // flag_array=0;
-    // $$->addr = $1->lexeme + "[" + $1->addr + "]";
+    // cout<<"hey ";
+    // cout<<"flag_array "<<flag_array<<endl;
+    // cout<<$$->addr<< $1->lexeme + "[" + $1->addr + "]"<<endl;;
     if(flag_array){
         string id = $1->addr;
         $$->addr = get_temp($1->type);
@@ -2056,12 +2064,12 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
     $$ = makenode("ArrayAccess", v);
 
     /* type checking */
+    arr_d = 1;
     if(onlyIntCheck($3->type)==TYPE_ERROR){
         yyerror("Array index must be of type int");
     }
     if($1->type.compare($1->type.size()-2, 2, TYPE_ARRAY)==0){
         $$->type = $1->type.substr(0, $1->type.size()-2);
-        arr_d = 1;
         int width = 1;
         CREATE_ST_KEY(temp, $1->lexeme);
         SymbTbl_entry* entry = lookup(temp);
@@ -2085,8 +2093,8 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         
         emit("*", $3->addr, w, $$->addr);
         
+        flag_array = 1;
         if(arr_d==entry->arr_dims.size()){
-            flag_array = 1;
             $$->last_instr = code.size()-1;
         }
     }
@@ -2225,6 +2233,7 @@ ARG_LISTp:   ARG_LISTp ',' Expr{
     // type checking
     $$ = $1;
     $$->typevec.push_back($3->type);
+    emit("param", $3->addr, "", "");
 }
 |           Expr{
     vector<treeNode*> v;
@@ -2233,6 +2242,7 @@ ARG_LISTp:   ARG_LISTp ',' Expr{
 
     // type checking
     $$->typevec.push_back($1->type);
+    emit("param", $1->addr, "", "");
 }
 ;
 

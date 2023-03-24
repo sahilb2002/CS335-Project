@@ -8,30 +8,40 @@ public class PM_Chutiya {
     //     return c;
     // }
     
-    // int arr[2][3][5];
-    // int i = 1;
-    // int j = 2;
-    // int k = 3;
-    // void ok(){
-    //     k = arr[i][1][2];
-    //     arr[2][0][0]=k;
-    // }
-    void main(){
-        int a,b;
-        if(a){
-            a = 10;
-            if(a==10){
-                int c=132;
-            }
-        }
-        else if(a==11){
-            int c=132;
-        }
-        else{
-            int c=132;
-        }
+    
+    int i = 1;
+    int j = 2;
+    int k = 3;
+    int ok(int arr[][], int b){
+        int a=arr[i][j];
         int c = a+b;
+        return c;
     }
+    int f(){
+        int arr[5][1];
+        arr[j][i] = 10;
+        int k = arr[3][2];
+        int a = ok(arr, 1);
+    }
+    // void main(){
+
+    //     int ar[19];
+    //     // int a = f(ar);
+    //     // int a,b;
+    //     // if(a){
+    //     //     a = 10;
+    //     //     if(a==10){
+    //     //         int c=132;
+    //     //     }
+    //     // }
+    //     // else if(a==11){
+    //     //     int c=132;
+    //     // }
+    //     // else{
+    //     //     int c=132;
+    //     // }
+    //     // int c = a+b;
+    // }
 
     // void main(){
     //     while(a<10){

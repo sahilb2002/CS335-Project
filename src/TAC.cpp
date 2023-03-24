@@ -26,7 +26,12 @@ qel_t get_temp(string type){
 
 void print_code(){
     for(int i = 0; i < code.size(); i++){
-        if(code[i].res.size()!=0)
+        if(code[i].op == "param"){
+            cout << i << " : " << code[i].op << " " << code[i].arg1 << endl;
+        }
+        else if(code[i].op == "call")
+            cout << i << " : " << code[i].res << " = " << code[i].op << " " << code[i].arg1 << endl;
+        else if(code[i].res.size()!=0)
             cout << i << " : " << code[i].res << " = " << code[i].arg1 << " " << code[i].op << " " << code[i].arg2 << endl;
         else
         cout << i << " : " << code[i].op <<" " << code[i].arg1<<" " <<code[i].arg2<<" " << code[i].idx<<endl;
