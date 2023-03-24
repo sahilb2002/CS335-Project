@@ -12,7 +12,7 @@ class rec2 {
 	int a = 9;
 	int b = 10;
 
-	public int two_times(int){
+	public int two_times(int a){
 	// invalid argument list. 
 		return 2*a;
 	}

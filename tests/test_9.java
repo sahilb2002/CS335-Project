@@ -1,26 +1,10 @@
-class For_Each     
-{
-    public static void main()
-    {
-        {
-            int marks[] = { 125, 132, 95, 116, 110 };
-              
-            int highest_marks = maximum(marks);
-            System.out.println("The highest score is " + highest_marks);
-        }
-    }
-    public static int maximum(int numbers[])
-    { 
-        int maxSoFar = numbers[0];
-          
-        // for each loop
-        for (int num : numbers) 
-        {
-            if (num > maxSoFar)
-            {
-                maxSoFar = num;
-            }
-        }
-    return maxSoFar;
+public class Final{ //error: cannot assign a value to final variable a
+    void main(){
+        final int a = 10;
+
+        int b=10;
+        int c = a+b;
+        a = b+c;
+        return;
     }
 }

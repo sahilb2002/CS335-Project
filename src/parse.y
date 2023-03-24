@@ -1281,9 +1281,9 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
             // typechecking
             if(compareMethTypes(entry->type, $3->typevec)){
                 $$->type = *(entry->type.rbegin());
-                if(is_stat_scope && !entry->stat_flag){
-                    yyerror("cannot call non static function " + entry->lexeme + " from static scope");
-                }
+                // if(is_stat_scope && !entry->stat_flag){
+                //     yyerror("cannot call non static function " + entry->lexeme + " from static scope");
+                // }
                 $$->addr = get_temp($$->type);
                 for(int i=0;i<entry->type.size()-1;i++){
                     if(entry->type[i] != $3->typevec[i]){
@@ -1318,9 +1318,9 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
 
                 if(compareMethTypes(entry->type, $3->typevec)){
                     $$->type = *(entry->type.rbegin());
-                    if(is_stat_scope && !entry->stat_flag){
-                        yyerror("cannot call non static function " + entry->lexeme + " from static scope");
-                    }
+                    // if(is_stat_scope && !entry->stat_flag){
+                    //     yyerror("cannot call non static function " + entry->lexeme + " from static scope");
+                    // }
                     $$->addr = get_temp($$->type);
                     for(int i=0;i<entry->type.size();i++){
                         if(entry->type[i] != $3->typevec[i]){
@@ -1451,7 +1451,7 @@ ExpressionName:  AmbiguousName '.' ID{
     SymbTbl_entry* entry = lookup(temp);
     if(entry && !entry->is_func){
         if(is_stat_scope && !entry->stat_flag){
-            yyerror("cannot access static variable " + entry->lexeme + "from non static scope.");
+            yyerror("cannot access static variable " + entry->lexeme + " from non static scope.");
         }
         $$->type = entry->type[0];
         $$->fin_flag = entry->fin_flag;
