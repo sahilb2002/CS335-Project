@@ -1322,7 +1322,7 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
                     //     yyerror("cannot call non static function " + entry->lexeme + " from static scope");
                     // }
                     $$->addr = get_temp($$->type);
-                    for(int i=0;i<entry->type.size();i++){
+                    for(int i=0;i<entry->type.size()-1;i++){
                         if(entry->type[i] != $3->typevec[i]){
                             emit($3->typevec[i] + "TO" + entry->type[i], "", $3->arg_addr[i], $3->arg_addr[i]);
                         }
@@ -1450,9 +1450,10 @@ ExpressionName:  AmbiguousName '.' ID{
     CREATE_ST_KEY(temp, *$1);
     SymbTbl_entry* entry = lookup(temp);
     if(entry && !entry->is_func){
-        if(is_stat_scope && !entry->stat_flag){
-            yyerror("cannot access static variable " + entry->lexeme + " from non static scope.");
-        }
+        if(current->table.find(*temp) == current->table.end())
+            if(is_stat_scope && !entry->stat_flag){
+                yyerror("cannot access static variable " + entry->lexeme + " from non static scope.");
+            }
         $$->type = entry->type[0];
         $$->fin_flag = entry->fin_flag;
         $$->addr = *$1;
@@ -1998,7 +1999,7 @@ AdditiveExpression:         MultiplicativeExpression{$$ = $1;}
     //3ac
     $$->addr = get_temp($$->type);
     $$->first_instr = $1->first_instr;
-    emit("-", $1->addr, $3->addr, $$->addr);
+    emit("-"+$$->type, $1->addr, $3->addr, $$->addr);
     $$->last_instr = code.size()-1;
 }
 ;
@@ -2092,7 +2093,7 @@ UnaryExpression:            PreIncrementExpression{$$ = $1;}
     //3ac
     $$->addr = $2->addr;
     $$->first_instr = $2->first_instr;
-    emit("+", $2->addr, "", $$->addr);
+    emit("+", "", $2->addr, $$->addr);
     $$->last_instr = code.size()-1;
 }
 |                           '-' UnaryExpression{
@@ -2106,7 +2107,7 @@ UnaryExpression:            PreIncrementExpression{$$ = $1;}
     //3ac
     $$->addr = get_temp($$->type);
     $$->first_instr = $2->first_instr;
-    emit("-", $2->addr, "", $$->addr);
+    emit("-", "", $2->addr, $$->addr);
     $$->last_instr = code.size()-1;
 }
 |                           UnaryExpressionNotPlusMinus{$$ = $1;}
@@ -2171,7 +2172,7 @@ UnaryExpressionNotPlusMinus:    PostfixExpression{
 
     $$->addr = get_temp($$->type);
     $$->first_instr = $2->first_instr;
-    emit("~", $2->addr, "", $$->addr);
+    emit("~","", $2->addr, $$->addr);
     $$->last_instr = code.size()-1;
 }
 |                               '!' UnaryExpression{
@@ -2186,7 +2187,7 @@ UnaryExpressionNotPlusMinus:    PostfixExpression{
     $$->addr = get_temp($$->type);
     $$->first_instr = $2->first_instr;
     $$->last_instr = code.size();
-    emit("!", $2->addr, "", $$->addr);
+    emit("!", "",$2->addr, $$->addr);
 }
 |   CastExpression {
     $$ = $1;
@@ -2344,8 +2345,18 @@ PrimaryNoNewArray:  LIT{
         auto it = classTable->table.find(*classTemp);
         if(it != classTable->table.end()){
             SymbTbl_entry* entry = it->second;
-            if(compareMethTypes(entry->type, $4->typevec))
+            if(compareMethTypes(entry->type, $4->typevec)){
                 $$->type = *$2;
+                for(int i=0;i<entry->type.size()-1;i++){
+                    if(entry->type[i] != $4->typevec[i]){
+                        string temp = get_temp(entry->type[i]);
+                        emit($4->typevec[i] + "TO" + entry->type[i], "", $4->arg_addr[i], temp);
+                        $4->arg_addr[i] = temp;
+                    }
+                    emit("param", $4->arg_addr[i], "", "");
+                }
+                emit("call", *$2, "", "");
+            }
             else{
                 yyerror("Invalid argument list to contructor of class " + entry->lexeme);
             }
@@ -2365,6 +2376,7 @@ PrimaryNoNewArray:  LIT{
         yyerror("No class " + *$2 + " found");
     } 
     free(temp);
+    $$->addr = "new obj";
 }
 ;
 
@@ -2378,7 +2390,8 @@ ArrayCreationExpr:  KEY_NEW DTYPE DimExpr{
     //type checking
     $$->type = $2->type + $3->type;
     $$->first_instr = $3->first_instr;
-    $$->last_instr = $3->last_instr;
+    $$->addr = "new array";
+    $$->last_instr = code.size()-1;
 }
 |                   KEY_NEW ID DimExpr{
     vector<treeNode*> v;

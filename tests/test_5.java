@@ -3,8 +3,9 @@ public class test{
         // System.out.println("Hello World");
     }
     int test(){
-        int arr[][] = {1,2,3},{a+b,d-9};//Need to insert 1D Array inside {...} to initialize 2D Array
-        int a = a*b + c | d & (e + a)*4;
+        int a,b,c,d,e;
+        int arr[][] = {{1,2,3},{a+b,d-9,0}};
+        a = a*b + c | d & (e + a)*4;
         return a+b-c*d;
     }
 }

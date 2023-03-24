@@ -1,4 +1,4 @@
-public class hello{  //typecast error
+public class hello{
     int fun(int arr[], int b, int c){
         int k= arr[b];
         String str;

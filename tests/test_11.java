@@ -21,7 +21,7 @@ public class BubbleSortExample {
                 for(int i=0; i < n; i++){  
                         System.out.println(arr[i] + " ");  
                 }  
-                System.out.println();  
+                System.out.println("");  
                   
                 bubbleSort(arr, n);//sorting array elements using bubble sort  
                  
