@@ -50,6 +50,7 @@ struct SymbTbl_entry{
     unsigned int lineno;
     int mod_flag;
     int stat_flag;
+    int fin_flag;
     bool func_is_defined;
     int func_entry_addr;
     SymbolTable* table;

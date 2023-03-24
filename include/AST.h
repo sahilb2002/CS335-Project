@@ -18,6 +18,7 @@ typedef struct treeNode{
 	vector<treeNode*> children;
 	vector<string> arr_dims;
 	int static_flag;
+	int fin_flag;
 	int dims_count_1;
 	int dims_count_2;
 	int dims_count_3;

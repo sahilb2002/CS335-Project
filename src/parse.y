@@ -38,6 +38,7 @@
 
     int is_stat_scope = 0;
     int stat_flag = 0;
+    int fin_flag = 0;
 
     map<char, int> Size ={
         {'I', 4},
@@ -109,6 +110,7 @@
 %token<str> KEY_PRIVATE
 %token<str> KEY_PUBLIC
 %token<str> KEY_STATIC
+%token<str> KEY_FINAL
 %token<str> KEY_PROTECTED
 %token<str> KEY_CLASS
 
@@ -141,7 +143,7 @@
 %type<ptr> UnaryExpressionNotPlusMinus PostfixExpression FieldAccess Primary ArrayCreationExpr DimExpr
 %type<ptr> ArrayAccess PostDecrementExpression PostIncrementExpression EMP_EXPR ARG_LIST ARG_LISTp LIT
 %type<ptr> STAT DTYPE Class_body Class_body_dec_list Class_body_dec Class_DEF_VAR MethodDeclaration 
-%type<ptr> Meth_Body DIMS_list Meth_Head DIMS Meth_decl Param_list Param MOD_EMPTY_LIST MOD_LIST MOD
+%type<ptr> Meth_Body DIMS_list Meth_Head DIMS Meth_decl Param_list Param MOD_EMPTY_LIST MOD_LIST MOD FIN
 %type<ptr> SwitchBlock SwitchBlockStatementGroup SwitchBlockStatementGroup_list SwitchLabel 
 %type<ptr> SwitchLabel_list SwitchRule SwitchRule_list SwitchStatement ThrowStatement CaseConstant_list 
 %type<ptr> CONT1D CONT2D CONT3D Array_init_1D Array_init_2D Array_init_3D L1D L2D L3D
@@ -726,16 +728,18 @@ IF_THEN_ELSE_noshortif: IF_STMNT KEY_ELSE STMNT_noshortif{
 ;
 
 
-DEF_VAR: STAT DTYPE VAR_LIST{
+DEF_VAR: STAT FIN DTYPE VAR_LIST{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $2, "", 1);
     insertAttr(v, $3, "", 1);
+    insertAttr(v, $4, "", 1);
     $$ = makenode("DEF_VAR", v);
 
     $$->first_instr = $3->first_instr;
     $$->last_instr = $3->last_instr;
     stat_flag = 0;
+    fin_flag = 0;
 }
 |       KEY_STATIC {stat_flag = 1;} ID{CREATE_ST_KEY(temp, *$3); temp->type.push_back(TYPE_CLASS); if(lookup(temp)){dType = *$3;} else {yyerror(*$3 + "doesn't name a type");} } VAR_LIST{
     vector<treeNode*> v;
@@ -771,6 +775,7 @@ VAR_LIST:   VAR_LIST ',' VAR{
     temp_entry->type.push_back(get_type(dType, $3->dim));
     temp_entry->arr_dims = $3->arr_dims;
     temp_entry->stat_flag = stat_flag;
+    temp_entry->fin_flag = fin_flag;
     int err = insert_symtbl(temp,temp_entry);
     if(err == ALREADY_EXIST){
         yyerror("Variable already declared: " + $3->lexeme);
@@ -792,6 +797,7 @@ VAR_LIST:   VAR_LIST ',' VAR{
     temp_entry->type.push_back(get_type(dType, $3->dim));
     temp_entry->arr_dims = $3->arr_dims;
     temp_entry->stat_flag = stat_flag;
+    temp_entry->fin_flag = fin_flag;
     
     int err = insert_symtbl(temp,temp_entry);
     if(err == ALREADY_EXIST){
@@ -810,6 +816,8 @@ VAR_LIST:   VAR_LIST ',' VAR{
     CREATE_ST_ENTRY(temp_entry,"ID", $1->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $1->dim));
     temp_entry->arr_dims = $1->arr_dims;
+    temp_entry->stat_flag = stat_flag;
+    temp_entry->fin_flag = fin_flag;
 
     
     int err = insert_symtbl(temp,temp_entry);
@@ -829,6 +837,8 @@ VAR_LIST:   VAR_LIST ',' VAR{
     CREATE_ST_ENTRY(temp_entry,"ID", $1->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $1->dim));
     temp_entry->arr_dims = $1->arr_dims;
+    temp_entry->stat_flag = stat_flag;
+    temp_entry->fin_flag = fin_flag;
     
     int err = insert_symtbl(temp,temp_entry);
     if(err == ALREADY_EXIST){
@@ -1363,6 +1373,7 @@ ExpressionName:  AmbiguousName '.' ID{
             SymbTbl_entry* entry = it->second;
             if(entry->mod_flag == PUBLIC_FLAG){
                 $$->type = entry->type[0];
+                $$->fin_flag = entry->fin_flag;
                 $$->addr = $$->lexeme;
             }
             else{
@@ -1392,6 +1403,7 @@ ExpressionName:  AmbiguousName '.' ID{
             yyerror("cannot access static variable " + entry->lexeme + "from non static scope.");
         }
         $$->type = entry->type[0];
+        $$->fin_flag = entry->fin_flag;
         $$->addr = *$1;
     }
     else{
@@ -1404,7 +1416,10 @@ AmbiguousName:  ID  {
     $$->lexeme = *$1;
     CREATE_ST_KEY(temp, *$1);
     SymbTbl_entry* entry = lookup(temp);
-    if(entry)$$->type = entry->type[0];
+    if(entry){
+        $$->type = entry->type[0];
+        $$->fin_flag = entry->fin_flag;
+    }
     else{
         yyerror("undeclared variable " + *$1 );
     } 
@@ -1426,6 +1441,7 @@ AmbiguousName:  ID  {
             // SymbTbl_entry* entry;
             if(entry->mod_flag == PUBLIC_FLAG){
                 $$->type = entry->type[0];
+                $$->fin_flag = entry->fin_flag;
             }
             else{
                 yyerror("Non-Public member " + *$3 + " of class " + $1->type + " cannot be accessed");
@@ -1449,6 +1465,9 @@ LeftHandSide:   ExpressionName{
     if($1->type == TYPE_ERROR){
         yyerror("Unidentified Symbol "+ $$->lexeme);
     }
+    if($1->fin_flag){
+        yyerror("Cannot Reassign Final Variable " + $$->lexeme);
+    }
 
     //3ac
     $$->addr = $1->addr;
@@ -1460,6 +1479,9 @@ LeftHandSide:   ExpressionName{
                                 $$ = $1;
                                 $$->addr = $1->lexeme + "[" + $1->addr + "]";
                                 flag_array = 0;
+                                if($1->fin_flag){
+                                    yyerror("Cannot Reassign Final Variable " + $$->lexeme);
+                                }
 }
 ;
 
@@ -2186,6 +2208,7 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         }
         $$->addr = w;
         $$->lexeme = $1->lexeme;
+        $$->fin_flag = entry->fin_flag;
         $$->first_instr = $1->first_instr;
         
         if(arr_d==entry->arr_dims.size()){
@@ -2222,6 +2245,7 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         }
         $$->type = $1->type.substr(0, $1->type.size()-2);
         $$->addr = w;
+        $$->fin_flag = entry->fin_flag;
         $$->lexeme = $1->lexeme;
         emit("+", $1->addr, w, $$->addr);
         
@@ -2398,6 +2422,15 @@ STAT:   KEY_STATIC{
     stat_flag = 0;
 }
 ;
+
+FIN:   KEY_FINAL{
+    $$ = makeleaf("final");
+    fin_flag = 1;
+}
+|       %empty{
+    $$ = NULL;
+    fin_flag = 0;
+}
 
 
 DTYPE:  KEY_INT{
