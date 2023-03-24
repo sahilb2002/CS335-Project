@@ -57,6 +57,7 @@ ESCAPE_SEQUENCE "\\b"|"\\s"|"\\t"|"\\n"|"\\f"|"\\r"|"\\\""|"\\\'"|"\\\\"
 "return" return KEY_RETURN;
 "static" return KEY_STATIC;
 "protected" return KEY_PROTECTED;
+"final" return KEY_FINAL;
 "class" return KEY_CLASS;
 "break" return KEY_BREAK;
 "continue" return KEY_CONTINUE;

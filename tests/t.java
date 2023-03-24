@@ -13,11 +13,15 @@ public class PM_Chutiya {
     //     arr[1][3][1] = 1;
     // } 
     // int i,j;
-    int ok(int a){
+    int ok(int b){
         // int a=arr[0][1];
         // int c = a+b;
         // float d = a + b;
-        System.out.println("Hello World" + 9 + "hjhg");
+        // System.out.println("Hello World" + 9 + "hjhg");
+        final int a[] = {10,20,30};
+        int c = 1;
+        c = 10;
+        a[1] = 11;
         // return c;
     }
     // int f(){
