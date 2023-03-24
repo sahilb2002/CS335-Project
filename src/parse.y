@@ -17,6 +17,7 @@
     extern treeNode* root;
     extern FILE* yyin;
     extern SymbolTable* current;
+    extern vector<quad> code;
 
     // 3AC
     int temp_addr = 0;
@@ -119,10 +120,10 @@
 %token<str> ARROW               // ->
 
 
-%type<str> Imp_list AssignmentOperator 
+%type<str> Imp_list AssignmentOperator
 %type<ptr> START ImportDecl_list AmbiguousName ExpressionName ClassDeclaration_list CastExpression ClassDeclaration ImportDecl BLCK_STMNT
 %type<ptr> PrimaryNoNewArray BODY BLCK STMNT_without_sub  Assert_stmnt STMNT STMNT_noshortif ConstructorDeclaration ConstructorHead
-%type<ptr> WHILE_STMNT WHILE_STMNT_noshortif BASIC_FOR BASIC_FOR_noshortif FOR_UPDATE FOR_INIT
+%type<ptr> WHILE_STMNT WHILE_STMNT_noshortif BASIC_FOR BASIC_FOR_noshortif FOR_UPDATE FOR_INIT IF_HEAD IF_STMNT
 %type<ptr> STMNT_EXPR_list IF_THEN IF_THEN_ELSE IF_THEN_ELSE_noshortif DEF_VAR VAR_LIST VARA VAR
 %type<ptr> STMNT_EXPR Meth_invoc Expr AssignmentExpression Assignment LeftHandSide ConditionalAndExpression
 %type<ptr> ConditionalOrExpression ConditionalExpression InclusiveOrExpression ExclusiveOrExpression 
@@ -196,6 +197,9 @@ BODY:   BODY BLCK_STMNT{
     insertAttr(v, $1, "Body", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("Body", v);
+
+    $$->first_instr = $1->first_instr;
+    $$->last_instr = $2->last_instr;
 }
 |       BLCK_STMNT{
     $$ = $1;
@@ -219,12 +223,17 @@ BLCK:   '{' {create_symtbl();} BODY '}'{
 
     // semantics
     current = current->parent;
+    $$->first_instr = $3->first_instr;
+    $$->last_instr = $3->last_instr;
 }
 |       '{' '}'{
     vector<treeNode*> v;
     insertAttr(v, NULL, "{", 0);
     insertAttr(v, NULL, "}", 0);
     $$ = makenode("Block", v);
+
+    $$->first_instr = code.size();
+    $$->last_instr = code.size()-1;
 }
 ;
 
@@ -255,6 +264,9 @@ STMNT_without_sub:  BLCK{
     insertAttr(v, makeleaf("yield"), "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("STMNT_without_sub", v);
+
+    $$->first_instr = $2->first_instr;
+    $$->last_instr = $2->last_instr;
 }
 |                   Assert_stmnt{
     $$ = $1;
@@ -408,6 +420,10 @@ CaseConstant_list: CaseConstant_list ',' ConditionalExpression {
     insertAttr(v, NULL, ",", 0);
     insertAttr(v, $3, "", 1);
     $$ = makenode("CaseConstantList", v);
+
+    // 3ac
+    $$->first_instr = $1->first_instr;
+    $$->last_instr = $3->last_instr;
 }
 |
 ConditionalExpression {
@@ -532,22 +548,22 @@ FOR_UPDATE: STMNT_EXPR_list {
     $$ = makenode("FOR_UPDATE", v);
 }
 | %empty{
-    $$ = NULL;
+    $$ = new treeNode;
+    $$->first_instr = code.size();
+    $$->last_instr = code.size();
 }
 ;
 
 FOR_INIT:   DEF_VAR{
-    vector<treeNode*> v;
-    insertAttr(v, $1, "", 1);
-    $$ = makenode("FOR_INIT", v);
+    $$ = $1;
 }
 |           STMNT_EXPR_list{
-    vector<treeNode*> v;
-    insertAttr(v, $1, "", 1);
-    $$ = makenode("FOR_INIT", v);
+    $$ = $1;
 }
 |           %empty{
-    $$ = NULL;
+    $$ = new treeNode;
+    $$->first_instr = code.size();
+    $$->last_instr = code.size();
 }
 ;
 
@@ -556,40 +572,75 @@ STMNT_EXPR_list:    STMNT_EXPR_list ',' STMNT_EXPR{
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("STMNT_EXPR_list", v);
+    
+    $$->first_instr = $1->first_instr;
+    $$->last_instr = $3->last_instr;
+
+    
 }
 |                   STMNT_EXPR{
-    vector<treeNode*> v;
-    insertAttr(v, $1, "", 1);
-    $$ = makenode("STMNT_EXPR_list", v);
+    $$ = $1;
 }
 ;
 
-IF_THEN:    KEY_IF '(' Expr ')' STMNT{
+IF_HEAD: KEY_IF '(' Expr ')' {
     vector<treeNode*> v;
     insertAttr(v, makeleaf("if"), "", 1);
     insertAttr(v, $3, "", 1);
-    insertAttr(v, $5, "", 1);
+    $$ = makenode("IF_HEAD", v);
+    
+    $$->first_instr = $3->first_instr;
+    $$->last_instr = code.size();
+    emit("iffalse", $3->addr, GOTO, "");
+    $$->falselist = $$->last_instr;
+}
+
+IF_THEN:    IF_HEAD STMNT{
+    vector<treeNode*> v;
+    insertAttr(v, $1, "", 1);
+    insertAttr(v, $2, "", 1);
     $$ = makenode("IF_THEN", v);
+
+    $$->first_instr = $1->first_instr;
+    $$->last_instr = $2->last_instr;
+    backPatch($1->falselist, $2->last_instr+1);
 }
 ;
-IF_THEN_ELSE:   KEY_IF '(' Expr ')' STMNT_noshortif KEY_ELSE STMNT{
+
+IF_STMNT: IF_HEAD STMNT_noshortif {
     vector<treeNode*> v;
-    insertAttr(v, makeleaf("if"), "", 1);
-    insertAttr(v, $3, "", 1);
-    insertAttr(v, $5, "", 1);
+    insertAttr(v, $1, "", 1);
+    insertAttr(v, $2, "", 1);
+    $$ = makenode("IF_STMNT", v);
+    $$->first_instr = $1->first_instr;
+    $$->last_instr = code.size();
+    emit(GOTO, "", "", "");
+    $$->truelist = $$->last_instr;
+    backPatch($1->falselist, code.size());
+}
+IF_THEN_ELSE:  IF_STMNT  KEY_ELSE STMNT{
+    vector<treeNode*> v;
+    insertAttr(v, $1, "", 1);
     insertAttr(v, makeleaf("else"), "", 1);
-    insertAttr(v, $7, "", 1);
+    insertAttr(v, $3, "", 1);
     $$ = makenode("IF_THEN_ELSE", v);
+
+    $$->first_instr = $1->first_instr;
+    $$->last_instr = $3->last_instr;
+    backPatch($1->truelist, $3->last_instr+1); 
 }
 ;
-IF_THEN_ELSE_noshortif: KEY_IF '(' Expr ')' STMNT_noshortif KEY_ELSE STMNT_noshortif{
+IF_THEN_ELSE_noshortif: IF_STMNT KEY_ELSE STMNT_noshortif{
     vector<treeNode*> v;
-    insertAttr(v, makeleaf("if"), "", 1);
-    insertAttr(v, $3, "", 1);
-    insertAttr(v, $5, "", 1);
+    insertAttr(v, $1, "", 1);
     insertAttr(v, makeleaf("else"), "", 1);
-    insertAttr(v, $7, "", 1);
+    insertAttr(v, $3, "", 1);
     $$ = makenode("IF_THEN_ELSE_noshortif", v);
+
+    // 3ac
+    $$->first_instr = $1->first_instr;
+    $$->last_instr = $3->last_instr;
+    backPatch($1->truelist, $3->last_instr+1); 
 }
 ;
 
@@ -600,6 +651,9 @@ DEF_VAR: STAT DTYPE VAR_LIST{
     insertAttr(v, $2, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("DEF_VAR", v);
+
+    $$->first_instr = $3->first_instr;
+    $$->last_instr = $3->last_instr;
 }
 |       KEY_STATIC ID{CREATE_ST_KEY(temp, *$2); temp->type.push_back(TYPE_CLASS); if(lookup(temp)){dType = *$2;} else {yyerror(*$2 + "doesn't name a type");} } VAR_LIST{
     vector<treeNode*> v;
@@ -607,12 +661,18 @@ DEF_VAR: STAT DTYPE VAR_LIST{
     insertAttr(v,makeleaf("ID(" + *$2 + ")"), "", 1 );
     insertAttr(v, $4, "", 1);
     $$ = makenode("DEF_VAR", v);
+
+    $$->first_instr = $4->first_instr;
+    $$->last_instr = $4->last_instr;
 }
 |        ID{CREATE_ST_KEY(temp, *$1); temp->type.push_back(TYPE_CLASS); if(lookup(temp)){dType = *$1;} else {yyerror(*$1 + "doesn't name a type");} } VAR_LIST{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("ID(" + *$1 + ")"), "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("DEF_VAR", v);
+
+    $$->first_instr = $3->first_instr;
+    $$->last_instr = $3->last_instr;
 }
 ;
 
@@ -632,6 +692,8 @@ VAR_LIST:   VAR_LIST ',' VAR{
         yyerror("Variable already declared: " + $3->lexeme);
     }
     free(temp);
+    $$->first_instr = $1->first_instr;
+    $$->last_instr = $3->last_instr;
 
 
 }
@@ -652,6 +714,9 @@ VAR_LIST:   VAR_LIST ',' VAR{
         yyerror("Variable already declared: " + $3->lexeme);
     }
     free(temp);
+
+    $$->first_instr = $1->first_instr;
+    $$->last_instr = $3->last_instr;
 }
 |           VAR{
     $$ = $1;
@@ -668,6 +733,9 @@ VAR_LIST:   VAR_LIST ',' VAR{
         yyerror("Variable already declared: " + $1->lexeme);
     }
     free(temp);
+
+    $$->first_instr = $1->first_instr;
+    $$->last_instr = $1->last_instr;
 }
 |           VARA{
     $$ = $1;
@@ -683,6 +751,9 @@ VAR_LIST:   VAR_LIST ',' VAR{
         yyerror("Variable already declared: " + $1->lexeme);
     }
     free(temp);
+
+    $$->first_instr = $1->first_instr;
+    $$->last_instr = $1->last_instr;
 }
 ;
 
@@ -699,6 +770,10 @@ VARA:   ID '=' Expr{
     if(!can_be_TypeCasted($3->type, dType)){
         yyerror("Type Mismatch " + $3->type + " cannot be typecasted to " + dType);
     }
+    emit("",$3->addr,"",*$1);
+
+    $$->first_instr = $3->first_instr;
+    $$->last_instr = code.size()-1;
 
 }
 |       ID '[' EMP_EXPR ']' '=' Array_init_1D{
@@ -719,7 +794,14 @@ VARA:   ID '=' Expr{
     if(!can_be_TypeCasted($6->type, dType + TYPE_ARRAY)){
         yyerror("Type Mismatch " + $6->type + " cannot be typecasted to " + dType + TYPE_ARRAY);
     }
+    if($3->addr != "" && $3->addr != $6->arr_dims[0]){
+        yyerror("Size Mismatch");
+    }
+
     $$->arr_dims = $6->arr_dims;
+
+    $$->first_instr = $3->first_instr;
+    $$->last_instr = code.size()-1;
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' Array_init_2D{
     vector<treeNode*> v;
@@ -742,7 +824,16 @@ VARA:   ID '=' Expr{
     if(!can_be_TypeCasted($9->type, dType + TYPE_ARRAY + TYPE_ARRAY)){
         yyerror("Type Mismatch " + $9->type + " cannot be typecasted to " + dType + TYPE_ARRAY + TYPE_ARRAY);
     }
+    if($3->addr != "" && $3->addr != $9->arr_dims[0]){
+        yyerror("Size Mismatch");
+    }
+    if($6->addr != "" && $6->addr != $9->arr_dims[1]){
+        yyerror("Size Mismatch");
+    }
     $$->arr_dims = $9->arr_dims;
+
+    $$->first_instr = $3->first_instr;
+    $$->last_instr = code.size()-1;
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '[' EMP_EXPR ']' '=' Array_init_3D{
     vector<treeNode*> v;
@@ -754,6 +845,7 @@ VARA:   ID '=' Expr{
     insertAttr(v, $6, "", 1);
     insertAttr(v, NULL, "]", 0);
     insertAttr(v, NULL, "[", 0);
+    
     insertAttr(v, $9, "", 1);
     insertAttr(v, NULL, "]", 0);
     treeNode* temp = makenode("LeftHandSide", v);
@@ -768,7 +860,19 @@ VARA:   ID '=' Expr{
     if(!can_be_TypeCasted($12->type, dType + TYPE_ARRAY + TYPE_ARRAY + TYPE_ARRAY)){
         yyerror("Type Mismatch " + $12->type + " cannot be typecasted to " + dType + TYPE_ARRAY + TYPE_ARRAY + TYPE_ARRAY);
     }
+    if($3->addr != "" && $3->addr != $12->arr_dims[0]){
+        yyerror("Size Mismatch");
+    }
+    if($6->addr != "" && $6->addr != $12->arr_dims[1]){
+        yyerror("Size Mismatch");
+    }
+    if($9->addr != "" && $9->addr != $12->arr_dims[2]){
+        yyerror("Size Mismatch");
+    }
     $$->arr_dims = $12->arr_dims;
+
+    $$->first_instr = $3->first_instr;
+    $$->last_instr = code.size()-1;
 }
 ;
 
@@ -786,6 +890,10 @@ Array_init_1D: L1D{
     $$->type = dType + TYPE_ARRAY;
 
     $$->arr_dims.push_back($4->addr);
+
+    $$->first_instr = $4->first_instr;
+    $$->last_instr = $4->last_instr;
+
 }
 ;
 Array_init_2D: L2D{
@@ -807,6 +915,9 @@ Array_init_2D: L2D{
 
     $$->arr_dims.push_back($4->addr);
     $$->arr_dims.push_back($7->addr);
+
+    $$->first_instr = $4->first_instr;
+    $$->last_instr = $7->last_instr;
 }
 ;
 Array_init_3D: L3D{
@@ -832,6 +943,9 @@ Array_init_3D: L3D{
     $$->arr_dims.push_back($4->addr);
     $$->arr_dims.push_back($7->addr);
     $$->arr_dims.push_back($10->addr);
+
+    $$->first_instr = $4->first_instr;
+    $$->last_instr = $10->last_instr;
 }
 ;
 
@@ -840,6 +954,11 @@ VAR:    ID{
 
     $$->lexeme = *$1;
     $$->dim = 0;
+
+    $$->addr = *$1;
+
+    $$->first_instr = code.size()-1;
+    $$->last_instr = code.size()-1;
 }
 |       ID '[' EMP_EXPR ']'{
     vector<treeNode*> v;
@@ -851,8 +970,9 @@ VAR:    ID{
 
     $$->lexeme = *$1;
     $$->dim = 1;
-    
-    $$->arr_dims.push_back($3->lexeme);
+    $$->first_instr = $3->first_instr;
+    $$->last_instr = $3->last_instr;
+    $$->arr_dims.push_back($3->addr);
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']'{
     vector<treeNode*> v;
@@ -867,8 +987,11 @@ VAR:    ID{
 
     $$->lexeme = *$1;
     $$->dim = 2;
-    $$->arr_dims.push_back($3->lexeme);
-    $$->arr_dims.push_back($6->lexeme);
+
+    $$->first_instr = $3->first_instr;
+    $$->last_instr = $6->last_instr;
+    $$->arr_dims.push_back($3->addr);
+    $$->arr_dims.push_back($6->addr);
 }
 |       ID '[' EMP_EXPR ']' '[' EMP_EXPR ']' '[' EMP_EXPR ']'{
     vector<treeNode*> v;
@@ -886,9 +1009,12 @@ VAR:    ID{
 
     $$->lexeme = *$1;
     $$->dim = 3;
-    $$->arr_dims.push_back($3->lexeme);
-    $$->arr_dims.push_back($6->lexeme);
-    $$->arr_dims.push_back($9->lexeme);
+
+    $$->first_instr = $3->first_instr;
+    $$->last_instr = $9->last_instr;
+    $$->arr_dims.push_back($3->addr);
+    $$->arr_dims.push_back($6->addr);
+    $$->arr_dims.push_back($9->addr);
 }
 ;
 
@@ -926,6 +1052,9 @@ CONT3D: CONT3D ',' L2D{
     if(dims_count_2 != $1->dims_count_2){
         yyerror("Array dimensions mismatch");
     }
+
+    $$->first_instr = $1->first_instr;
+    $$->last_instr = $3->last_instr;
 }
 |       L2D{
     $$ = $1;
@@ -946,6 +1075,8 @@ L2D:    '{' CONT2D '}'{
 
     $$->arr_dims.push_back(to_string(dims_count_1));
     $$->arr_dims.push_back(to_string(dims_count_2));
+
+    
 }
 ;
 CONT2D: CONT2D ',' L1D{
@@ -968,7 +1099,10 @@ CONT2D: CONT2D ',' L1D{
     
     if(dims_count_1 != $1->dims_count_1){
         yyerror("Array dimensions mismatch");
-    }   
+    }  
+
+    $$->first_instr = $1->first_instr;
+    $$->last_instr = $3->last_instr; 
 }
 |       L1D{
     $$ = $1;
@@ -1001,12 +1135,16 @@ CONT1D: CONT1D ',' Expr{
 
     dims_count_1 += 1;
     $$->dims_count_1 = dims_count_1;
+
+    $$->first_instr = $1->first_instr;
+    $$->last_instr = $3->last_instr;
 }
 |       Expr{
     $$ = $1;
 
     dims_count_1 = 1;
     $$->dims_count_1 = dims_count_1;
+    
 }
 ;
 
@@ -1098,7 +1236,10 @@ Assignment: LeftHandSide AssignmentOperator Expr{
         yyerror("Type Mismatched cannot cast " + $3->type + " to " + $1->type);
     }
 
-    emit("", $3->addr, "", $1->addr);   
+    $$->first_instr = $1->first_instr;
+    $$->last_instr = code.size();
+    emit("", $3->addr, "", $1->addr); 
+
 }
 ;
 
@@ -1204,17 +1345,21 @@ AmbiguousName:  ID  {
 LeftHandSide:   ExpressionName{
     $$ = makeleaf("ID(" + $1->lexeme + ")");
     $$->lexeme = $1->lexeme;
+    //type checking
     $$->type = $1->type;
     if($1->type == TYPE_ERROR){
         yyerror("Unidentified Symbol "+ $$->lexeme);
     }
+
+    //3ac
     $$->addr = $1->addr;
+    $$->first_instr = $1->first_instr;
+    $$->last_instr = $1->last_instr;
 }
 |               FieldAccess{$$ = $1;}
 |               ArrayAccess{
                                 $$ = $1;
                                 $$->addr = $1->lexeme + "[" + $1->addr + "]";
-
 }
 ;
 
@@ -1246,7 +1391,9 @@ ConditionalOrExpression:    ConditionalAndExpression{$$ = $1;}
 
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $1->first_instr;
     emit("||", $1->addr, $3->addr, $$->addr);
+    $$->last_instr = code.size()-1;
 }
 ;
 
@@ -1262,7 +1409,9 @@ ConditionalAndExpression:   InclusiveOrExpression{$$ = $1;}
 
     // 3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $1->first_instr;
     emit("&&", $1->addr, $3->addr, $$->addr);
+    $$->last_instr = code.size()-1;
 
 }
 ;
@@ -1279,7 +1428,9 @@ InclusiveOrExpression:      ExclusiveOrExpression{$$ = $1;}
 
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $1->first_instr;
     emit("|", $1->addr, $3->addr, $$->addr);
+    $$->last_instr = code.size()-1;
 }
 ;
 
@@ -1295,7 +1446,9 @@ ExclusiveOrExpression:      AndExpression{$$ = $1;}
 
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $1->first_instr;
     emit("^", $1->addr, $3->addr, $$->addr);
+    $$->last_instr = code.size()-1;
 }
 ;
 
@@ -1311,7 +1464,9 @@ AndExpression:              EqualityExpression{$$ = $1;}
     
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $1->first_instr;
     emit("&", $1->addr, $3->addr, $$->addr);
+    $$->last_instr = code.size()-1;
 }
 ;
 
@@ -1327,7 +1482,9 @@ EqualityExpression:         RelationalExpression{$$ = $1;}
 
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $1->first_instr;
     emit("==", $1->addr, $3->addr, $$->addr);
+    $$->last_instr = code.size()-1;
 }
 |                           EqualityExpression NOT_EQUAL RelationalExpression{
     vector<treeNode*> v;
@@ -1340,7 +1497,9 @@ EqualityExpression:         RelationalExpression{$$ = $1;}
 
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $1->first_instr;
     emit("!=", $1->addr, $3->addr, $$->addr);    
+    $$->last_instr = code.size()-1;
 }
 ;
 
@@ -1356,7 +1515,9 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
 
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $1->first_instr;
     emit("<", $1->addr, $3->addr, $$->addr);
+    $$->last_instr = code.size()-1;
 }
 |                           RelationalExpression '>' ShiftExpression{
     vector<treeNode*> v;
@@ -1369,7 +1530,9 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
 
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $1->first_instr;
     emit(">", $1->addr, $3->addr, $$->addr);
+    $$->last_instr = code.size()-1;
 }
 |                           RelationalExpression GTR_EQUAL ShiftExpression{
     vector<treeNode*> v;
@@ -1382,7 +1545,9 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
 
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $1->first_instr;
     emit(">=", $1->addr, $3->addr, $$->addr);
+    $$->last_instr = code.size()-1;
 }
 |                           RelationalExpression LESS_EQUAL ShiftExpression{
     vector<treeNode*> v;
@@ -1395,7 +1560,9 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
 
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $1->first_instr;
     emit("<=", $1->addr, $3->addr, $$->addr);
+    $$->last_instr = code.size()-1;
 }
 ;
 
@@ -1411,7 +1578,9 @@ ShiftExpression:            AdditiveExpression{$$ = $1;}
 
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $1->first_instr;
     emit("<<", $1->addr, $3->addr, $$->addr);
+    $$->last_instr = code.size()-1;
 }
 |                           ShiftExpression RIGHT_SHIFT AdditiveExpression{
     vector<treeNode*> v;
@@ -1424,7 +1593,9 @@ ShiftExpression:            AdditiveExpression{$$ = $1;}
 
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $1->first_instr;
     emit(">>", $1->addr, $3->addr, $$->addr);
+    $$->last_instr = code.size()-1;
 }
 |                           ShiftExpression SIGN_SHIFT AdditiveExpression{
     vector<treeNode*> v;
@@ -1437,7 +1608,9 @@ ShiftExpression:            AdditiveExpression{$$ = $1;}
     
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $1->first_instr;
     emit(">>>", $1->addr, $3->addr, $$->addr);
+    $$->last_instr = code.size()-1;
 }
 ;
 
@@ -1453,7 +1626,9 @@ AdditiveExpression:         MultiplicativeExpression{$$ = $1;}
 
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $1->first_instr;
     emit("+", $1->addr, $3->addr, $$->addr);
+    $$->last_instr = code.size()-1;
 }
 |                           AdditiveExpression '-' MultiplicativeExpression{
     vector<treeNode*> v;
@@ -1466,7 +1641,9 @@ AdditiveExpression:         MultiplicativeExpression{$$ = $1;}
 
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $1->first_instr;
     emit("-", $1->addr, $3->addr, $$->addr);
+    $$->last_instr = code.size()-1;
 }
 ;
 
@@ -1482,7 +1659,9 @@ MultiplicativeExpression:   UnaryExpression{$$ = $1;}
 
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $1->first_instr;
     emit("*", $1->addr, $3->addr, $$->addr);
+    $$->last_instr = code.size()-1;
 }
 |                           MultiplicativeExpression '/' UnaryExpression{
     vector<treeNode*> v;
@@ -1495,7 +1674,9 @@ MultiplicativeExpression:   UnaryExpression{$$ = $1;}
 
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $1->first_instr;
     emit("/", $1->addr, $3->addr, $$->addr);
+    $$->last_instr = code.size()-1;
 }
 |                           MultiplicativeExpression '%' UnaryExpression{
     vector<treeNode*> v;
@@ -1508,7 +1689,9 @@ MultiplicativeExpression:   UnaryExpression{$$ = $1;}
     
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $1->first_instr;
     emit("%", $1->addr, $3->addr, $$->addr);
+    $$->last_instr = code.size()-1;
 }
 ;
 
@@ -1524,7 +1707,9 @@ UnaryExpression:            PreIncrementExpression{$$ = $1;}
 
     //3ac
     $$->addr = $2->addr;
+    $$->first_instr = $2->first_instr;
     emit("+", $2->addr, "", $$->addr);
+    $$->last_instr = code.size()-1;
 }
 |                           '-' UnaryExpression{
     vector<treeNode*> v;
@@ -1536,7 +1721,9 @@ UnaryExpression:            PreIncrementExpression{$$ = $1;}
 
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $2->first_instr;
     emit("-", $2->addr, "", $$->addr);
+    $$->last_instr = code.size()-1;
 }
 |                           UnaryExpressionNotPlusMinus{$$ = $1;}
 ;
@@ -1557,8 +1744,10 @@ PreIncrementExpression:     INCREMENT UnaryExpression{
 
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $2->first_instr;
     emit("+", $2->addr, "1", $2->addr);
     emit("", $2->addr, "", $$->addr);
+    $$->last_instr = code.size()-1;
 }
 ;
 
@@ -1578,8 +1767,10 @@ PreDecrementExpression:     DECREMENT UnaryExpression{
 
     //3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $2->first_instr;
     emit("-", $2->addr, "1", $2->addr);
     emit("", $2->addr, "", $$->addr);
+    $$->last_instr = code.size()-1;
 }
 ;
 
@@ -1595,7 +1786,9 @@ UnaryExpressionNotPlusMinus:    PostfixExpression{
     $$->type = $2->type;
 
     $$->addr = get_temp($$->type);
+    $$->first_instr = $2->first_instr;
     emit("~", $2->addr, "", $$->addr);
+    $$->last_instr = code.size()-1;
 }
 |                               '!' UnaryExpression{
     vector<treeNode*> v;
@@ -1607,6 +1800,8 @@ UnaryExpressionNotPlusMinus:    PostfixExpression{
     
     // 3ac
     $$->addr = get_temp($$->type);
+    $$->first_instr = $2->first_instr;
+    $$->last_instr = code.size();
     emit("!", $2->addr, "", $$->addr);
 }
 |   CastExpression {
@@ -1639,6 +1834,9 @@ CastExpression:             '(' DTYPE ')' UnaryExpression{
     else{
         $$->addr = $4->addr;
     }
+
+    $$->first_instr = $4->first_instr;
+    $$->last_instr = code.size()-1;
 }
 
 PostfixExpression:              Primary{
@@ -1691,13 +1889,6 @@ FieldAccess:    Primary '.' ID{
         yyerror("No class " + $1->type + " found");
     } 
 }
-|               KEY_SUPER '.' ID{
-    vector<treeNode*> v;
-    insertAttr(v, makeleaf("super"), "", 1);
-    //insertAttr(v, makeleaf("."), "", 1);
-    insertAttr(v, makeleaf("ID(" + *$3 + ")"), "", 1);
-    $$ = makenode("FieldAccess", v);
-}
 ;
 
 
@@ -1719,7 +1910,6 @@ Primary:    PrimaryNoNewArray{
 |           ArrayCreationExpr{
     $$ = $1;
 }
-/* |           VAR */
 ;
 
 PrimaryNoNewArray:  LIT{
@@ -1734,7 +1924,11 @@ PrimaryNoNewArray:  LIT{
 
     //type checking
     $$->type = $2->type;
+
+    //3ac
     $$->addr = $2->addr;
+    $$->first_instr = $2->first_instr;
+    $$->last_instr = $2->last_instr;
 }
 |                   ArrayAccess{
                         $$ = $1;
@@ -1793,6 +1987,8 @@ ArrayCreationExpr:  KEY_NEW DTYPE DimExpr{
 
     //type checking
     $$->type = $2->type + $3->type;
+    $$->first_instr = $3->first_instr;
+    $$->last_instr = $3->last_instr;
 }
 |                   KEY_NEW ID DimExpr{
     vector<treeNode*> v;
@@ -1811,6 +2007,8 @@ ArrayCreationExpr:  KEY_NEW DTYPE DimExpr{
     else{
         yyerror("No class " + *$2 + " found");
     }
+    $$->first_instr = $3->first_instr;
+    $$->last_instr = $3->last_instr;
 }
 ;
 
@@ -1826,6 +2024,10 @@ DimExpr:    '[' Expr ']'{
         yyerror("Array index must be of type int");
     }
     $$->type = TYPE_ARRAY;
+
+    $$->first_instr = $2->first_instr;
+    $$->last_instr = $2->last_instr;
+
 }
 |           DimExpr '[' Expr ']'{
     vector<treeNode*> v;
@@ -1840,6 +2042,8 @@ DimExpr:    '[' Expr ']'{
         yyerror("Array index must be of type int");
     }
     $$->type = $1->type + TYPE_ARRAY;
+    $$->first_instr = $1->first_instr;
+    $$->last_instr = $3->last_instr;
 }
 ;
 
@@ -1877,11 +2081,13 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
 
         $$->addr = get_temp($1->type.substr(0, $1->type.size()-2));
         $$->lexeme = $1->lexeme;
+        $$->first_instr = $1->first_instr;
         
         emit("*", $3->addr, w, $$->addr);
         
         if(arr_d==entry->arr_dims.size()){
             flag_array = 1;
+            $$->last_instr = code.size()-1;
         }
     }
     else{
@@ -1916,6 +2122,10 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         $$->addr = get_temp($1->type.substr(0, $1->type.size()-2));
         $$->lexeme = $1->lexeme;
         string w = get_temp($1->type.substr(0, $1->type.size()-2));
+        for(int i=arr_d+1; i<entry->arr_dims.size(); i++){
+            emit("*", entry->arr_dims[i], s, w);
+
+        }
         
         if(s!="") emit("*", to_string(Size[$1->type[0]]), s, w);
         else emit("*", to_string(Size[$1->type[0]]), "1", w);
@@ -1926,6 +2136,7 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         
         if(arr_d==entry->arr_dims.size()){
             flag_array = 1;
+            $$->last_instr = code.size()-1;
         }
         
     }
@@ -1955,6 +2166,9 @@ PostIncrementExpression:        PostfixExpression INCREMENT{
     emit("", $1->addr, "", $$->addr);
     emit("+", $1->addr, "1", $1->addr);
 
+    $$->first_instr = $1->first_instr;
+    $$->last_instr = code.size()-1;
+
 }
 ;
 
@@ -1976,15 +2190,23 @@ PostDecrementExpression:        PostfixExpression DECREMENT {
     $$->addr = get_temp($1->type);
     emit("", $1->addr, "", $$->addr);
     emit("-", $1->addr, "1", $1->addr);
+    $$->first_instr = $1->first_instr;
+    $$->last_instr = code.size()-1;
 }
 ;
 
 
 
-EMP_EXPR:   Expr{$$ = $1;}
+EMP_EXPR:   Expr{
+    $$ = $1;
+    $$->first_instr = $1->first_instr;
+    $$->last_instr = $1->last_instr;
+}
 | %empty{
     $$ = new treeNode;
     $$->type = TYPE_VOID;
+    $$->first_instr = code.size();
+    $$->last_instr = code.size();
 }
 ;
 
