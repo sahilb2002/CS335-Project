@@ -774,7 +774,7 @@ VAR_LIST:   VAR_LIST ',' VAR{
     CREATE_ST_ENTRY(temp_entry,"ID", $3->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $3->dim));
     temp_entry->arr_dims = $3->arr_dims;
-    temp_entry->stat_flag = stat_flag;
+    temp_entry->stat_flag = stat_flag || is_stat_scope;
     temp_entry->fin_flag = fin_flag;
     int err = insert_symtbl(temp,temp_entry);
     if(err == ALREADY_EXIST){
@@ -796,7 +796,7 @@ VAR_LIST:   VAR_LIST ',' VAR{
     CREATE_ST_ENTRY(temp_entry,"ID", $3->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $3->dim));
     temp_entry->arr_dims = $3->arr_dims;
-    temp_entry->stat_flag = stat_flag;
+    temp_entry->stat_flag = stat_flag | is_stat_scope;
     temp_entry->fin_flag = fin_flag;
     
     int err = insert_symtbl(temp,temp_entry);
@@ -816,7 +816,7 @@ VAR_LIST:   VAR_LIST ',' VAR{
     CREATE_ST_ENTRY(temp_entry,"ID", $1->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $1->dim));
     temp_entry->arr_dims = $1->arr_dims;
-    temp_entry->stat_flag = stat_flag;
+    temp_entry->stat_flag = stat_flag | is_stat_scope;
     temp_entry->fin_flag = fin_flag;
 
     
@@ -837,7 +837,7 @@ VAR_LIST:   VAR_LIST ',' VAR{
     CREATE_ST_ENTRY(temp_entry,"ID", $1->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $1->dim));
     temp_entry->arr_dims = $1->arr_dims;
-    temp_entry->stat_flag = stat_flag;
+    temp_entry->stat_flag = stat_flag | is_stat_scope;
     temp_entry->fin_flag = fin_flag;
     
     int err = insert_symtbl(temp,temp_entry);
@@ -1399,6 +1399,7 @@ ExpressionName:  AmbiguousName '.' ID{
     CREATE_ST_KEY(temp, *$1);
     SymbTbl_entry* entry = lookup(temp);
     if(entry && !entry->is_func){
+        //cout<<is_stat_scope<<" "<<entry->stat_flag<<endl;
         if(is_stat_scope && !entry->stat_flag){
             yyerror("cannot access static variable " + entry->lexeme + " from non static scope.");
         }
@@ -2678,6 +2679,7 @@ Param_list: Param_list ',' Param{
     // sematics
     CREATE_ST_ENTRY(temp_entry,"ID", $3->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $3->dim));
+    temp_entry->stat_flag = stat_flag | is_stat_scope;
     
     methKeys.push_back(temp_entry);
 }
@@ -2688,6 +2690,7 @@ Param_list: Param_list ',' Param{
     CREATE_ST_ENTRY(temp_entry,"ID", $1->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $1->dim));
     temp_entry->arr_dims = $1->arr_dims;
+    temp_entry->stat_flag = stat_flag | is_stat_scope;
 
         
     methKeys.push_back(temp_entry);
