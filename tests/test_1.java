@@ -46,14 +46,15 @@ class rec2 {
 	public void main() {
 		IO io = new IO();
 		rec1 obj1 = new rec1();
+		rec2 obj2;
 		int a;
 		int b = a;
 		io.print_int(b);
 		float j;
-		// int three_times = 4;
-		// int c = obj2.sum(obj1.a, 1);
+		int three_times = 4;
+		int c = obj2.sum(obj1.a, 1);
 
-		int c = obj1.three_times(a);
+		c = obj1.three_times(a);
 		obj1.three_times(1);
 		c = three_times()*4;
 
@@ -62,7 +63,7 @@ class rec2 {
 		for(int i=0;i<10;c=(i++)){
 			arr[0] = 1.0;
 		}
-		// arr = new int[10];
-		// io.print_int(j);
+		arr = new double[10];
+		io.print_int(j);
 	}
 }

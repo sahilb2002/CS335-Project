@@ -1,17 +1,10 @@
-public class test_16 {
-    float add(int a, float b){
-        return a+b;
+public class test15 {  // error: array index is not integer
+    int foo(){
+        // no return statement gives warning.
+        int a;
     }
-    void main(){
-        int a=10;
-        float b = 10.6;
-        
-        float c = a+b;
-
-        int k = c>0?1:0;
-
-        System.out.println(c);
-        float d = add(a, k);
-        return;
+    int main(){
+        int arr[] = new int[10];
+        arr[1.1] = 0;
     }
 }

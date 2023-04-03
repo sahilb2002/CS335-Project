@@ -38,10 +38,10 @@ void print_code(){
             fprintf(tac, "%d : %s %s\n", i, code[i].op.c_str(), code[i].arg1.c_str()); 
         }
         else if(code[i].op == "call"){
-            cout << i << " : " << code[i].res << " = " << code[i].op << " " << code[i].arg1 << endl;
+            cout << i << " : " << code[i].res << " = " << code[i].op << " " << code[i].arg1<<" @ "<<code[i].arg2 << endl;
             fprintf(tac, "%d : %s = %s %s\n", i, code[i].res.c_str(), code[i].op.c_str(), code[i].arg1.c_str());
         }
-        else if(code[i].op == "RET" || code[i].op == GOTO){
+        else if(code[i].op == "RET" ){
             cout << i << " : " << code[i].op << " " << code[i].arg1 << endl;
             fprintf(tac, "%d : %s %s\n", i, code[i].op.c_str(), code[i].arg1.c_str());
         }
