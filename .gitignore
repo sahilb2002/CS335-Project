@@ -12,3 +12,4 @@
 *t.cpp
 doc/*
 *.pdf
+src/*.o

@@ -8,6 +8,10 @@
     #include<TAC.h>
     #include<map>
     #include<cstring>
+
+    #define RED     "\033[31m"
+    #define RESET   "\033[0m"
+    #define MAGENTA "\033[35m"
     using namespace std;
 
     
@@ -54,12 +58,20 @@
     FILE* dotfile;
 
     void yyerror(string s) {
-        cout << "[Line no: " << yylineno << "] " << "Error: " << s << endl;
+        cout << "[Line no: " << yylineno << "] ";
+        cout<< RED;
+        cout << "Error: " ;
+        cout<< RESET;
+        cout << s << endl;
         exit(-1);
     }
 
     void yywarn(string s) {
-        cout << "[Line no: " << yylineno << "] " << "Warning: " << s << endl;
+        cout << "[Line no: " << yylineno << "] ";
+        cout<<MAGENTA;
+        cout << "Warning: ";
+        cout<<RESET;
+        cout << s << endl;
     }
 
 %}
