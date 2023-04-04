@@ -1,12 +1,21 @@
 public class PM_Chutiya {
-    static int k = 0;
-    public static void main(String args) {
-        int i=0;
-        String s = args;
-       //int a = k;
-        for(i=0; i<10; i++) {
-            System.out.println("Hello World");
-        }
-        return;
+    int a, b;
+    public int h(int args) {
+        return args;
+    }
+    int c;
 }
+
+public class temp{
+    public static int happy(int a){
+        return a;
+    }
+    public static void main(String args[]) {
+        int a;
+        double c;
+        PM_Chutiya b;
+        c.h(a);
+        // happy(a);
+    }
+
 }

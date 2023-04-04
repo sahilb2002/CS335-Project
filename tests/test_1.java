@@ -27,10 +27,7 @@ class rec1 {
 	// }
 }
 
-class rec2 {
-	int a = 9;
-	int b = 10;
-
+class rec2{
 	public int two_times(int a){	
 		return 2*a;
 	}
@@ -43,9 +40,14 @@ class rec2 {
 	int three_times(){
 		;
 	}
+}
+
+class rec3 {
+	int a = 9;
+	int b = 10;
 	public void main() {
 		IO io = new IO();
-		rec1 obj1 = new rec1();
+		rec1 obj1;
 		rec2 obj2;
 		int a;
 		int b = a;
@@ -59,7 +61,7 @@ class rec2 {
 		c = three_times()*4;
 
 		// c =  j;
-		double arr[] = new double[10];
+		double arr[10];
 		for(int i=0;i<10;c=(i++)){
 			arr[0] = 1.0;
 		}
