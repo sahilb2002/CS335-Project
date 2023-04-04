@@ -778,7 +778,7 @@ DEF_VAR: STAT FIN DTYPE VAR_LIST{
     CREATE_ST_ENTRY(temp_entry,"ID", $3->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $3->dim));
     temp_entry->arr_dims = $3->arr_dims;
-    temp_entry->stat_flag = stat_flag;
+    temp_entry->stat_flag = stat_flag || is_stat_scope;
     temp_entry->fin_flag = fin_flag;
     stack_top += Size[dType[0]];
     temp_entry->offset = stack_top;
@@ -803,7 +803,7 @@ DEF_VAR: STAT FIN DTYPE VAR_LIST{
     CREATE_ST_ENTRY(temp_entry,"ID", $3->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $3->dim));
     temp_entry->arr_dims = $3->arr_dims;
-    temp_entry->stat_flag = stat_flag;
+    temp_entry->stat_flag = stat_flag | is_stat_scope;
     temp_entry->fin_flag = fin_flag;
     stack_top += Size[dType[0]];
     temp_entry->offset = stack_top;
@@ -825,7 +825,7 @@ DEF_VAR: STAT FIN DTYPE VAR_LIST{
     CREATE_ST_ENTRY(temp_entry,"ID", $1->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $1->dim));
     temp_entry->arr_dims = $1->arr_dims;
-    temp_entry->stat_flag = stat_flag;
+    temp_entry->stat_flag = stat_flag | is_stat_scope;
     temp_entry->fin_flag = fin_flag;
     stack_top += Size[dType[0]];
     temp_entry->offset = stack_top;
@@ -848,7 +848,7 @@ DEF_VAR: STAT FIN DTYPE VAR_LIST{
     CREATE_ST_ENTRY(temp_entry,"ID", $1->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $1->dim));
     temp_entry->arr_dims = $1->arr_dims;
-    temp_entry->stat_flag = stat_flag;
+    temp_entry->stat_flag = stat_flag | is_stat_scope;
     temp_entry->fin_flag = fin_flag;
     stack_top += Size[dType[0]];
     temp_entry->offset = stack_top;
@@ -1477,10 +1477,10 @@ ExpressionName:  AmbiguousName '.' ID{
     CREATE_ST_KEY(temp, *$1);
     SymbTbl_entry* entry = lookup(temp);
     if(entry && !entry->is_func){
-        if(current->table.find(*temp) == current->table.end())
-            if(is_stat_scope && !entry->stat_flag){
-                yyerror("cannot access static variable " + entry->lexeme + " from non static scope.");
-            }
+        //cout<<is_stat_scope<<" "<<entry->stat_flag<<endl;
+        if(is_stat_scope && !entry->stat_flag){
+            yyerror("cannot access static variable " + entry->lexeme + " from non static scope.");
+        }
         $$->type = entry->type[0];
         $$->fin_flag = entry->fin_flag;
         $$->addr = *$1;
@@ -2987,6 +2987,7 @@ Param_list: Param_list ',' Param{
     temp_entry->type.push_back(get_type(dType, $3->dim));
     temp_entry->offset = -(16 + param_size);
     param_size += Size[dType[0]];
+    temp_entry->stat_flag = stat_flag | is_stat_scope;
 
     methKeys.push_back(temp_entry);
 }
@@ -2999,7 +3000,8 @@ Param_list: Param_list ',' Param{
     temp_entry->arr_dims = $1->arr_dims;
     temp_entry->offset = -(16);
     param_size  = Size[dType[0]];
-        
+            temp_entry->stat_flag = stat_flag | is_stat_scope;
+
     methKeys.push_back(temp_entry);
 
     

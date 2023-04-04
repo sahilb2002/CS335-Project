@@ -8,7 +8,7 @@ public class hello{
 
     void main(){
         int a,b,c,d;
-        int arr[][] = {{1,2,3},{4, 5, 6}};
+        float arr[][] = {{1,2,3},{4, 5, 6}};
         b=1;
         c=1;
         int e = fun(arr[0], b, c);
