@@ -10,6 +10,10 @@ int tbl_id = 0;
 // bool operator < (const string &a, const string &b){
 //     return a.compare(b) < 0;
 // }
+void clean_files(){
+    system("rm -rf symbol_tables");
+    system("mkdir symbol_tables");
+}
 
 bool operator<(const SymbTbl_key& a, const SymbTbl_key& b) { 
     if(a.lexeme != b.lexeme)
@@ -60,7 +64,7 @@ SymbolTable* create_symtbl(){
 
 // }
 void printSymbolTable(SymbolTable* tbl){
-    string path = "SymbolTable" + to_string(tbl->tbl_id) +".csv";
+    string path = "symbol_tables/SymbolTable" + to_string(tbl->tbl_id) +".csv";
     fstream SymbolTableFile = fstream(path, ios::out);
     // cout<<"Symbol Table ID: "<<tbl->tbl_id<<endl;
     //SymbolTableFile<<"Symbol Table ID: "<<tbl->tbl_id<<endl;
@@ -88,6 +92,7 @@ string get_type(string& dType, int dim){
 }
 
 void initSymbolTable(){
+    clean_files();
     CREATE_ST_KEY(sysClass, "system");
     sysClass->type.push_back(TYPE_CLASS);
     CREATE_ST_ENTRY(sysClassent,"ID","system",0,PUBLIC_FLAG);
