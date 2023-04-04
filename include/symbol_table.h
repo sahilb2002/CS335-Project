@@ -52,6 +52,7 @@ struct SymbTbl_entry{
     int stat_flag;
     int fin_flag;
     bool func_is_defined;
+    int offset;
     int func_entry_addr;
     SymbolTable* table;
     SymbTbl_entry* obj_entry;

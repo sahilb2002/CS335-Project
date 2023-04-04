@@ -8,3 +8,7 @@
 *main
 *main.pdf
 *main.dot
+*t.java
+*t.cpp
+doc/*
+*.pdf

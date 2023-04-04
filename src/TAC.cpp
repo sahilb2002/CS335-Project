@@ -33,7 +33,7 @@ void print_code(){
     }
 
     for(int i = 0; i < code.size(); i++){
-        if(code[i].op == "param"){
+        if(code[i].op == "push" || code[i].op == "pop"){
             cout << i << " : " << code[i].op << " " << code[i].arg1 << endl;
             fprintf(tac, "%d : %s %s\n", i, code[i].op.c_str(), code[i].arg1.c_str()); 
         }

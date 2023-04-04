@@ -22,6 +22,8 @@
     // 3AC
     int temp_addr = 0;
     int instr_addr = 0;
+    int stack_top = 0;
+    int param_size = 0;
 
     string dType;
     string retType;
@@ -268,6 +270,7 @@ STMNT_without_sub:  BLCK{
         yyerror("Invalid Return Type, expected " + retType );
 
     flag_return = 1;
+    emit("pop", "%rbp","","");
     emit("RET",$2->addr,"","");
 
     $$->last_instr = code.size()-1;
@@ -764,7 +767,7 @@ DEF_VAR: STAT FIN DTYPE VAR_LIST{
 }
 ;
 
-VAR_LIST:   VAR_LIST ',' VAR{
+ VAR_LIST:   VAR_LIST ',' VAR{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $3, "", 1);
@@ -777,6 +780,9 @@ VAR_LIST:   VAR_LIST ',' VAR{
     temp_entry->arr_dims = $3->arr_dims;
     temp_entry->stat_flag = stat_flag;
     temp_entry->fin_flag = fin_flag;
+    stack_top += Size[dType[0]];
+    temp_entry->offset = stack_top;
+
     int err = insert_symtbl(temp,temp_entry);
     if(err == ALREADY_EXIST){
         yyerror("Variable already declared: " + $3->lexeme);
@@ -799,6 +805,8 @@ VAR_LIST:   VAR_LIST ',' VAR{
     temp_entry->arr_dims = $3->arr_dims;
     temp_entry->stat_flag = stat_flag;
     temp_entry->fin_flag = fin_flag;
+    stack_top += Size[dType[0]];
+    temp_entry->offset = stack_top;
     
     int err = insert_symtbl(temp,temp_entry);
     if(err == ALREADY_EXIST){
@@ -819,6 +827,8 @@ VAR_LIST:   VAR_LIST ',' VAR{
     temp_entry->arr_dims = $1->arr_dims;
     temp_entry->stat_flag = stat_flag;
     temp_entry->fin_flag = fin_flag;
+    stack_top += Size[dType[0]];
+    temp_entry->offset = stack_top;
 
     
     int err = insert_symtbl(temp,temp_entry);
@@ -840,6 +850,8 @@ VAR_LIST:   VAR_LIST ',' VAR{
     temp_entry->arr_dims = $1->arr_dims;
     temp_entry->stat_flag = stat_flag;
     temp_entry->fin_flag = fin_flag;
+    stack_top += Size[dType[0]];
+    temp_entry->offset = stack_top;
     
     int err = insert_symtbl(temp,temp_entry);
     if(err == ALREADY_EXIST){
@@ -1285,15 +1297,22 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
                 //     yyerror("cannot call non static function " + entry->lexeme + " from static scope");
                 // }
                 $$->addr = get_temp($$->type);
+                param_size = 0;
                 for(int i=0;i<entry->type.size()-1;i++){
                     if(entry->type[i] != $3->typevec[i]){
                         string temp = get_temp(entry->type[i]);
                         emit($3->typevec[i] + "TO" + entry->type[i], "", $3->arg_addr[i], temp);
                         $3->arg_addr[i] = temp;
                     }
-                    emit("param", $3->arg_addr[i], "", "");
+                    param_size += Size[entry->type[i][0]];
+                }
+                emit("+", "%rsp", to_string(stack_top), "%rsp" );
+                for(int i=entry->type.size()-2;i>=0;i--){
+                    emit("push", $3->arg_addr[i],"", "");
                 }
                 emit("call", $1->lexeme + ", " + to_string($3->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
+                emit("-", "%rsp", to_string(stack_top + param_size), "%rsp" );
+                param_size = 0;
             }
             else{
                 yyerror("Invalid Argument Types for Method " + $1->lexeme);
@@ -1322,12 +1341,20 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
                     //     yyerror("cannot call non static function " + entry->lexeme + " from static scope");
                     // }
                     $$->addr = get_temp($$->type);
+                    param_size = 0;
                     for(int i=0;i<entry->type.size()-1;i++){
                         if(entry->type[i] != $3->typevec[i]){
                             emit($3->typevec[i] + "TO" + entry->type[i], "", $3->arg_addr[i], $3->arg_addr[i]);
                         }
-                        emit("param", $3->arg_addr[i], "", "");
+                        param_size += Size[entry->type[i][0]];
                     }
+                    emit("+", "%rsp", to_string(stack_top), "%rsp" );
+                    for(int i=entry->type.size()-2;i>=0;i--){
+                        emit("push", $3->arg_addr[i],"", "");
+                    }
+                    emit("call", $1->lexeme + ", " + to_string($3->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
+                    emit("-", "%rsp", to_string(stack_top + param_size), "%rsp" );
+                    param_size = 0;
                     if(entry->mod_flag == PUBLIC_FLAG){
                         $$->type = *(entry->type.rbegin());
                         $$->addr = get_temp($$->type);
@@ -2347,15 +2374,24 @@ PrimaryNoNewArray:  LIT{
             SymbTbl_entry* entry = it->second;
             if(compareMethTypes(entry->type, $4->typevec)){
                 $$->type = *$2;
+                param_size = 0;
                 for(int i=0;i<entry->type.size()-1;i++){
                     if(entry->type[i] != $4->typevec[i]){
                         string temp = get_temp(entry->type[i]);
                         emit($4->typevec[i] + "TO" + entry->type[i], "", $4->arg_addr[i], temp);
                         $4->arg_addr[i] = temp;
                     }
-                    emit("param", $4->arg_addr[i], "", "");
+                    param_size += Size[entry->type[i][0]];
                 }
-                emit("call", *$2, "", "");
+                if(stack_top)
+                emit("+", "%rsp", to_string(stack_top), "%rsp" );
+                for(int i=entry->type.size()-2;i>=0;i--){
+                    emit("push", $4->arg_addr[i],"", "");
+                }
+                emit("call", *$2 + ", " + to_string($4->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
+                if(stack_top + param_size)
+                emit("-", "%rsp", to_string(stack_top + param_size), "%rsp" );
+                param_size = 0;
             }
             else{
                 yyerror("Invalid argument list to contructor of class " + entry->lexeme);
@@ -2806,19 +2842,21 @@ Class_DEF_VAR:  MOD_EMPTY_LIST DTYPE VAR_LIST ';'{
     mod_flag = PRIVATE_FLAG;
 }
 ;
-MethodDeclaration: MOD_EMPTY_LIST Meth_Head Meth_Body{
+MethodDeclaration: MOD_EMPTY_LIST Meth_Head{emit("push", "%rbp","",""); emit("", "%rsp", "","%rbp");} Meth_Body{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $2, "", 1);
-    insertAttr(v, $3, "", 1);
+    insertAttr(v, $4, "", 1);
     $$ = makenode("MethodDeclaration", v);
 
     if(!flag_return){
         yywarn("No return statement in function ");
-        emit("RET","","","");
     }
+    emit("pop", "%rbp","","");
+    emit("RET","0","","");
     flag_return = 0;
     is_stat_scope = 0;
+    stack_top = 0;
 }
 ;
 
@@ -2947,7 +2985,9 @@ Param_list: Param_list ',' Param{
     // sematics
     CREATE_ST_ENTRY(temp_entry,"ID", $3->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $3->dim));
-    
+    temp_entry->offset = -(16 + param_size);
+    param_size += Size[dType[0]];
+
     methKeys.push_back(temp_entry);
 }
 |           Param{
@@ -2957,7 +2997,8 @@ Param_list: Param_list ',' Param{
     CREATE_ST_ENTRY(temp_entry,"ID", $1->lexeme, yylineno, mod_flag);
     temp_entry->type.push_back(get_type(dType, $1->dim));
     temp_entry->arr_dims = $1->arr_dims;
-
+    temp_entry->offset = -(16);
+    param_size  = Size[dType[0]];
         
     methKeys.push_back(temp_entry);
 
@@ -3045,9 +3086,9 @@ ConstructorHead:    MOD_EMPTY_LIST ID  '('  Param_list ')'{
         CREATE_ST_ENTRY(temp_centry, "ID", *$2, yylineno, PUBLIC_FLAG);
         temp_centry->is_func = true;
         for(auto p:methKeys){
-            temp->type.push_back(p->type[0]);
+            temp_centry->type.push_back(p->type[0]);
         }
-        temp->type.push_back(TYPE_NORET);
+        temp_centry->type.push_back(TYPE_NORET);
         if(insert_symtbl(temp_construct, temp_centry)==ALREADY_EXIST){
             yyerror("Constructor already declared in class " + *$2);
         }
@@ -3061,6 +3102,8 @@ ConstructorHead:    MOD_EMPTY_LIST ID  '('  Param_list ')'{
     if(stat_flag)
     is_stat_scope = 1;
     stat_flag = 0;
+    emit("push", "%rbp", "", "");
+    emit("", "%rsp", "", "%rbp");
     
 }
 |                   MOD_EMPTY_LIST ID '(' ')'{
@@ -3080,7 +3123,7 @@ ConstructorHead:    MOD_EMPTY_LIST ID  '('  Param_list ')'{
         CREATE_ST_KEY(temp_construct, *$2);
         CREATE_ST_ENTRY(temp_centry, "ID", *$2, yylineno, PUBLIC_FLAG);
         temp_centry->is_func = true;
-        temp->type.push_back(TYPE_NORET);
+        temp_centry->type.push_back(TYPE_NORET);
         if(insert_symtbl(temp_construct, temp_centry)==ALREADY_EXIST){
             yyerror("Constructor already declared in class " + *$2);
         }
@@ -3094,6 +3137,8 @@ ConstructorHead:    MOD_EMPTY_LIST ID  '('  Param_list ')'{
     if(stat_flag)
     is_stat_scope = 1;
     stat_flag = 0;
+    emit("push", "%rbp", "", "");
+    emit("", "%rsp", "", "%rbp");
 
 }
 ;
@@ -3104,6 +3149,12 @@ ConstructorDeclaration : ConstructorHead BLCK{
     insertAttr(v, $2, "", 1);
     $$ = makenode("construtor", v);
     is_stat_scope = 0;
+    if(!flag_return){
+        yywarn("No return statement in function ");
+    }
+    emit("pop", "%rbp","","");
+    emit("RET","","","");
+    flag_return = 0;
 
 }
 ;
