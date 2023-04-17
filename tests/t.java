@@ -1,12 +1,17 @@
-public class PM_Chutiya {
-    static int k = 0;
-    public static void main(String args) {
-        int i=0;
-        String s = args;
-       //int a = k;
-        for(i=0; i<10; i++) {
-            System.out.println("Hello World");
-        }
-        return;
+public class A{
+    public int a;
 }
+public class B{
+    int func(){
+        int a,b,c;
+        a = (b+c) + (b*c) + (b-c) + (b/c);
+        c = b+1;
+    }
+    // int foo(int bc, int ab){
+    //     return bc+ab;
+    // }
+    // int main(){
+    //     A a = new A();
+    //     return 0;
+    // }
 }

@@ -58,6 +58,13 @@ struct SymbTbl_entry{
     SymbTbl_entry* obj_entry;
     string addr;
     vector<string>arr_dims;
+    
+    struct addr_desc{
+        string reg;
+        bool stack;
+    } addr_desc;
+    int next_use=-1;
+    
     SymbTbl_entry(string cat, string lex, unsigned int l,int mod):category(cat), lexeme(lex), lineno(l), mod_flag(mod), func_is_defined(true), is_func(false){}
     SymbTbl_entry():category(""), lexeme(""), lineno(0), func_is_defined(true), is_func(false){}
 };

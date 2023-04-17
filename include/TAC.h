@@ -3,6 +3,8 @@
 
 #include <string>
 #include <vector>
+#include <utility>
+#include <AST.h>
 using namespace std;
 
 
@@ -12,8 +14,7 @@ using namespace std;
 #define IFFALSE "ifFalse"
 #define ASSERT_FAIL "Raise Assersion failure"
 
-typedef string qel_t;
-
+typedef pair<string, SymbTbl_entry*> qel_t;
 
 struct quad{
     

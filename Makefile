@@ -7,7 +7,7 @@ main: parse.tab.o AST.o lex.yy.o symbol_table.o typecheck.o TAC.o
 lex.yy.o: lex.yy.c
 	g++ -I $(INC) -c src/lex.yy.c -o src/lex.yy.o
 
-lex.yy.c: src/lex.l include/AST.h src/parse.tab.c
+lex.yy.c: src/lex.l include/AST.h parse.tab.c
 	flex --outfile=src/lex.yy.c src/lex.l
 
 parse.tab.o: parse.tab.c
@@ -35,4 +35,4 @@ TAC.o: src/TAC.cpp include/TAC.h
 # 	g++ -I $(INC) src/parse.tab.c src/AST.cpp src/lex.yy.c src/symbol_table.cpp src/typecheck.cpp src/TAC.cpp -o main
 clean:
 	rm -f main src/parse.tab.c src/parse.tab.h src/lex.yy.c include/parse.tab.h SymbolTable*.csv tac.txt
-	rm -rf src/*.o
+	rm -f src/*.o

@@ -1432,7 +1432,8 @@ Assignment: LeftHandSide AssignmentOperator Expr{
 
     $$->first_instr = $1->first_instr;
     $$->last_instr = code.size();
-    emit("", $3->addr, "", $1->addr);
+    emit("", $3->addr, "", $1->lexeme);
+    // emit("", $1->addr, "", $1->lexeme);
     flag_array = 0; 
 }
 ;
@@ -1495,7 +1496,6 @@ ExpressionName:  AmbiguousName '.' ID{
         }
         $$->type = entry->type[0];
         $$->fin_flag = entry->fin_flag;
-        $$->addr = *$1;
     }
     else{
         $$->type = TYPE_ERROR;
@@ -1765,7 +1765,7 @@ EqualityExpression:         RelationalExpression{$$ = $1;}
     $$ = makenode("==", v);
     
     //type checking
-    $$->type = relCheck($1->type, $3->type);
+    $$->type = maxType($1->type, $3->type);
     if($$->type != $1->type){
         string temp = get_temp($$->type);
         emit($1->type + "TO" + $$->type, $1->addr, "", temp);
@@ -1776,7 +1776,7 @@ EqualityExpression:         RelationalExpression{$$ = $1;}
         emit($3->type + "TO" + $$->type, $3->addr, "", temp);
         $3->addr = temp;
     }
-
+    $$->type = TYPE_BOOL;
     //3ac
     $$->addr = get_temp($$->type);
     $$->first_instr = $1->first_instr;
@@ -1790,7 +1790,7 @@ EqualityExpression:         RelationalExpression{$$ = $1;}
     $$ = makenode("!=", v);
 
     //type checking
-    $$->type = relCheck($1->type, $3->type);
+    $$->type = maxType($1->type, $3->type);
     if($$->type != $1->type){
         string temp = get_temp($$->type);
         emit($1->type + "TO" + $$->type, $1->addr, "", temp);
@@ -1800,7 +1800,8 @@ EqualityExpression:         RelationalExpression{$$ = $1;}
         string temp = get_temp($$->type);
         emit($3->type + "TO" + $$->type, $3->addr, "", temp);
         $3->addr = temp;
-    }
+    }   
+    $$->type = TYPE_BOOL;
 
     //3ac
     $$->addr = get_temp($$->type);
@@ -1818,7 +1819,8 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
     $$ = makenode("<", v);
 
     //type checking
-    $$->type = relCheck($1->type, $3->type);
+    $$->type = maxType($1->type, $3->type);
+    //cout << "type: " << $$->type << $1->type << $3->type << endl;
     if($$->type != $1->type){
         string temp = get_temp($$->type);
         emit($1->type + "TO" + $$->type, $1->addr, "", temp);
@@ -1829,6 +1831,7 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
         emit($3->type + "TO" + $$->type, $3->addr, "", temp);
         $3->addr = temp;
     }
+    $$->type = TYPE_BOOL;
 
     //3ac
     $$->addr = get_temp($$->type);
@@ -1843,7 +1846,7 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
     $$ = makenode(">", v);
 
     //type checking
-    $$->type = relCheck($1->type, $3->type);
+    $$->type = maxType($1->type, $3->type);
     if($$->type != $1->type){
         string temp = get_temp($$->type);
         emit($1->type + "TO" + $$->type, $1->addr, "", temp);
@@ -1854,7 +1857,7 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
         emit($3->type + "TO" + $$->type, $3->addr, "", temp);
         $3->addr = temp;
     }
-
+    $$->type = TYPE_BOOL;
     //3ac
     $$->addr = get_temp($$->type);
     $$->first_instr = $1->first_instr;
@@ -1868,7 +1871,7 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
     $$ = makenode(">=", v);
 
     //type checking
-    $$->type = relCheck($1->type, $3->type);
+    $$->type = maxType($1->type, $3->type);
     if($$->type != $1->type){
         string temp = get_temp($$->type);
         emit($1->type + "TO" + $$->type, $1->addr, "", temp);
@@ -1879,7 +1882,7 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
         emit($3->type + "TO" + $$->type, $3->addr, "", temp);
         $3->addr = temp;
     }
-
+    $$->type = TYPE_BOOL;
     //3ac
     $$->addr = get_temp($$->type);
     $$->first_instr = $1->first_instr;
@@ -1893,7 +1896,7 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
     $$ = makenode("<=", v);
 
     //type checking
-    $$->type = relCheck($1->type, $3->type);
+    $$->type = maxType($1->type, $3->type);
     if($$->type != $1->type){
         string temp = get_temp($$->type);
         emit($1->type + "TO" + $$->type, $1->addr, "", temp);
@@ -1904,7 +1907,7 @@ RelationalExpression:       ShiftExpression{$$ = $1;}
         emit($3->type + "TO" + $$->type, $3->addr, "", temp);
         $3->addr = temp;
     }
-
+    $$->type = TYPE_BOOL;
     //3ac
     $$->addr = get_temp($$->type);
     $$->first_instr = $1->first_instr;
@@ -2272,6 +2275,8 @@ PostfixExpression:              Primary{
         yyerror("Undeclared variable " + $1->lexeme);
     }
     $$ = $1;
+    $$->addr = get_temp($$->type);
+    emit("", $$->lexeme, "", $$->addr);
 }
 |                               PostIncrementExpression{
     $$ = $1;
@@ -2866,6 +2871,7 @@ MethodDeclaration: MOD_EMPTY_LIST Meth_Head{emit("push", "%rbp","",""); emit("",
     }
     emit("pop", "%rbp","","");
     emit("RET","0","","");
+    emit("funcend", $2->lexeme, "", "");
     flag_return = 0;
     is_stat_scope = 0;
     stack_top = 0;
@@ -2910,6 +2916,7 @@ Meth_Head:  DTYPE DIMS Meth_decl{
     insertAttr(v, $2, "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("Method Header", v);
+    $$->lexeme = $3->lexeme;
 }
 |           KEY_VOID{dType = TYPE_VOID;} DIMS Meth_decl{
     vector<treeNode*> v;
@@ -2917,18 +2924,21 @@ Meth_Head:  DTYPE DIMS Meth_decl{
     insertAttr(v, $3, "", 1);
     insertAttr(v, $4, "", 1);
     $$ = makenode("Method Header", v);
+    $$->lexeme = $3->lexeme;
 }
 |           DTYPE Meth_decl{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $2, "", 1);
     $$ = makenode("Method Header", v);
+    $$->lexeme = $2->lexeme;
 }
 |           KEY_VOID{dType = TYPE_VOID;} Meth_decl{
     vector<treeNode*> v;
     insertAttr(v, makeleaf("void"), "", 1);
     insertAttr(v, $3, "", 1);
     $$ = makenode("Method Header", v);
+    $$->lexeme = $3->lexeme;
 }
 ;
 
@@ -2940,6 +2950,7 @@ Meth_decl:  ID '('{retType = dType;} Param_list ')'{
     insertAttr(v, $4, "", 1);
     insertAttr(v, NULL, ")", 0);
     $$ = makenode("Method Declaration", v);
+    $$->lexeme = *$1;
 
     //sematics
     CREATE_ST_KEY(temp, *$1);
@@ -2963,6 +2974,8 @@ Meth_decl:  ID '('{retType = dType;} Param_list ')'{
     if(stat_flag == 1)
         is_stat_scope = 1;
     stat_flag = 0;
+
+    emit("func", *$1, "", "");
 }
 |           ID '('{retType = dType;} ')'{
     vector<treeNode*> v;
@@ -2985,6 +2998,8 @@ Meth_decl:  ID '('{retType = dType;} Param_list ')'{
     if(stat_flag == 1)
         is_stat_scope = 1;
     stat_flag = 0;
+
+    emit("func", *$1, "", "");
 }
 ;
 

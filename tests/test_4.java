@@ -4,8 +4,9 @@ public class test{ //error array dimension mismatch
     }
     int test(){
         int a,b,c,d, e;
-        int arr[][] = {{1,2,3},{a+b,d-9}};
-        a = a*b + c | d & (e + this.a)*4;
+        int arr[][] = new int[2][3];
+        int x,y;
+        arr[x][y] = a*b + c | d & (e + a)*4;
         return a+b-c*d;
     }
 }
