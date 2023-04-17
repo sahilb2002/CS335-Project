@@ -10,8 +10,8 @@ public class MergeSort {
     int n2 = r - m;
     
     // create temp arrays
-    int L[] = new int[n1];
-    int R[] = new int[n2];
+    int L[10];
+    int R[20];
     
     // copy data to temp arrays
     for (int i = 0; i < n1; ++i)

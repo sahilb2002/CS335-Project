@@ -27,7 +27,9 @@
     int temp_addr = 0;
     int instr_addr = 0;
     int stack_top = 0;
+    int prev_stack_top = 0;
     int param_size = 0;
+    bool is_heap_allocated = false;
 
     string dType;
     string retType;
@@ -51,8 +53,10 @@
         {'F', 4},
         {'D', 8},
         {'L', 8},
-        {'C', 1},
-        {'S', 2}
+        {'C', 2},
+        {'S', 2},
+        {'B', 1},
+        
     };
     
     FILE* dotfile;
@@ -792,8 +796,29 @@ DEF_VAR: STAT FIN DTYPE VAR_LIST{
     temp_entry->arr_dims = $3->arr_dims;
     temp_entry->stat_flag = stat_flag || is_stat_scope;
     temp_entry->fin_flag = fin_flag;
-    stack_top += Size[dType[0]];
-    temp_entry->offset = stack_top;
+    if(dType != TYPE_INT && dType != TYPE_LONG && dType != TYPE_FLOAT && dType != TYPE_DOUBLE && dType != TYPE_CHAR && dType != TYPE_BOOL && dType != TYPE_STRING && dType != TYPE_SHORT){
+        CREATE_ST_KEY(temp, dType);
+        temp->type.push_back(TYPE_CLASS);
+        stack_top += lookup(temp)->offset;
+        temp_entry->offset = stack_top;
+    }
+    else if($3->arr_dims.size()==0){
+        stack_top += Size[dType[0]];
+        temp_entry->offset = stack_top;
+    }
+    else{
+        int arrSize = 1;
+        for(int i=0; i<$1->arr_dims.size(); i++){
+            try {
+                arrSize *= stoi($1->arr_dims[i]);
+            }
+            catch (...) {
+                yyerror("Dynamic Array Size not allowed\n");
+            }
+        }
+        stack_top += Size[dType[0]] * arrSize;
+        temp_entry->offset = stack_top;
+    }
 
     int err = insert_symtbl(temp,temp_entry);
     if(err == ALREADY_EXIST){
@@ -817,8 +842,29 @@ DEF_VAR: STAT FIN DTYPE VAR_LIST{
     temp_entry->arr_dims = $3->arr_dims;
     temp_entry->stat_flag = stat_flag | is_stat_scope;
     temp_entry->fin_flag = fin_flag;
-    stack_top += Size[dType[0]];
-    temp_entry->offset = stack_top;
+    if(dType != TYPE_INT && dType != TYPE_LONG && dType != TYPE_FLOAT && dType != TYPE_DOUBLE && dType != TYPE_CHAR && dType != TYPE_BOOL && dType != TYPE_STRING && dType != TYPE_SHORT){
+        CREATE_ST_KEY(temp, dType);
+        temp->type.push_back(TYPE_CLASS);
+        stack_top += lookup(temp)->offset;
+        temp_entry->offset = stack_top;
+    }
+    else if($3->arr_dims.size()==0){
+        stack_top += Size[dType[0]];
+        temp_entry->offset = stack_top;
+    }
+    else{
+        int arrSize = 1;
+        for(int i=0; i<$3->arr_dims.size(); i++){
+            try {
+                arrSize *= stoi($3->arr_dims[i]);
+            }
+            catch (...) {
+                yyerror("Dynamic Array Size not allowed\n");
+            }
+        }
+        stack_top += Size[dType[0]] * arrSize;
+        temp_entry->offset = stack_top;
+    }
     
     int err = insert_symtbl(temp,temp_entry);
     if(err == ALREADY_EXIST){
@@ -839,8 +885,29 @@ DEF_VAR: STAT FIN DTYPE VAR_LIST{
     temp_entry->arr_dims = $1->arr_dims;
     temp_entry->stat_flag = stat_flag | is_stat_scope;
     temp_entry->fin_flag = fin_flag;
-    stack_top += Size[dType[0]];
-    temp_entry->offset = stack_top;
+    if(dType != TYPE_INT && dType != TYPE_LONG && dType != TYPE_FLOAT && dType != TYPE_DOUBLE && dType != TYPE_CHAR && dType != TYPE_BOOL && dType != TYPE_STRING && dType != TYPE_SHORT){
+        CREATE_ST_KEY(temp, dType);
+        temp->type.push_back(TYPE_CLASS);
+        stack_top += lookup(temp)->offset;
+        temp_entry->offset = stack_top;
+    }
+    else if($1->arr_dims.size()==0){
+        stack_top += Size[dType[0]];
+        temp_entry->offset = stack_top;
+    }
+    else{
+        int arrSize = 1;
+        for(int i=0; i<$1->arr_dims.size(); i++){
+            try {
+                arrSize *= stoi($1->arr_dims[i]);
+            }
+            catch (...) {
+                yyerror("Dynamic Array Size not allowed\n");
+            }
+        }
+        stack_top += Size[dType[0]] * arrSize;
+        temp_entry->offset = stack_top;
+    }
 
     
     int err = insert_symtbl(temp,temp_entry);
@@ -862,8 +929,29 @@ DEF_VAR: STAT FIN DTYPE VAR_LIST{
     temp_entry->arr_dims = $1->arr_dims;
     temp_entry->stat_flag = stat_flag | is_stat_scope;
     temp_entry->fin_flag = fin_flag;
-    stack_top += Size[dType[0]];
-    temp_entry->offset = stack_top;
+    if(dType != TYPE_INT && dType != TYPE_LONG && dType != TYPE_FLOAT && dType != TYPE_DOUBLE && dType != TYPE_CHAR && dType != TYPE_BOOL && dType != TYPE_STRING && dType != TYPE_SHORT){
+        CREATE_ST_KEY(temp, dType);
+        temp->type.push_back(TYPE_CLASS);
+        stack_top += lookup(temp)->offset;
+        temp_entry->offset = stack_top;
+    }
+    else if($1->arr_dims.size()==0){
+        stack_top += Size[dType[0]];
+        temp_entry->offset = stack_top;
+    }
+    else{
+        int arrSize = 1;
+        for(int i=0; i<$1->arr_dims.size(); i++){
+            try {
+                arrSize *= stoi($1->arr_dims[i]);
+            }
+            catch (...) {
+                yyerror("Dynamic Array Size not allowed\n");
+            }
+        }
+        stack_top += Size[dType[0]] * arrSize;
+        temp_entry->offset = stack_top;
+    }
     
     int err = insert_symtbl(temp,temp_entry);
     if(err == ALREADY_EXIST){
@@ -921,6 +1009,7 @@ VARA:   ID '=' Expr{
         yyerror("Type Mismatch " + $6->type + " cannot be typecasted to " + dType + TYPE_ARRAY);
     }
     if($3->addr != "" && $3->addr != $6->arr_dims[0]){
+        // cout<<"$1 "<<$3->addr<<" "<<$6->arr_dims[0]<<endl;
         yyerror("Size Mismatch");
     }
 
@@ -950,10 +1039,13 @@ VARA:   ID '=' Expr{
     if(!can_be_TypeCasted($9->type, dType + TYPE_ARRAY + TYPE_ARRAY)){
         yyerror("Type Mismatch " + $9->type + " cannot be typecasted to " + dType + TYPE_ARRAY + TYPE_ARRAY);
     }
+    // cout<<"$21 "<<$3->addr<<" "<<$9->arr_dims[0]<<" "<<$9->arr_dims[1]<<endl;
     if($3->addr != "" && $3->addr != $9->arr_dims[0]){
+        // cout<<"$21 "<<$3->addr<<" "<<$9->arr_dims[0]<<endl;
         yyerror("Size Mismatch");
     }
     if($6->addr != "" && $6->addr != $9->arr_dims[1]){
+        // cout<<"$22 "<<$6->addr<<" "<<$9->arr_dims[1]<<endl;
         yyerror("Size Mismatch");
     }
     $$->arr_dims = $9->arr_dims;
@@ -987,12 +1079,15 @@ VARA:   ID '=' Expr{
         yyerror("Type Mismatch " + $12->type + " cannot be typecasted to " + dType + TYPE_ARRAY + TYPE_ARRAY + TYPE_ARRAY);
     }
     if($3->addr != "" && $3->addr != $12->arr_dims[0]){
+        // cout<<"$31 "<<$3->addr<<" "<<$12->arr_dims[0]<<endl;
         yyerror("Size Mismatch");
     }
     if($6->addr != "" && $6->addr != $12->arr_dims[1]){
+        // cout<<"$32 "<<$6->addr<<" "<<$12->arr_dims[1]<<endl;
         yyerror("Size Mismatch");
     }
     if($9->addr != "" && $9->addr != $12->arr_dims[2]){
+        // cout<<"$33 "<<$9->addr<<" "<<$12->arr_dims[2]<<endl;
         yyerror("Size Mismatch");
     }
     $$->arr_dims = $12->arr_dims;
@@ -1151,9 +1246,9 @@ L3D:    '{' CONT3D '}'{
     $$->dims_count_1 = dims_count_1;
     $$->dims_count_2 = dims_count_2;
     $$->dims_count_3 = dims_count_3;
-    $$->arr_dims.push_back(to_string(dims_count_1));
-    $$->arr_dims.push_back(to_string(dims_count_2));
     $$->arr_dims.push_back(to_string(dims_count_3));
+    $$->arr_dims.push_back(to_string(dims_count_2));
+    $$->arr_dims.push_back(to_string(dims_count_1));
 }   
 ;
 CONT3D: CONT3D ',' L2D{
@@ -1199,8 +1294,8 @@ L2D:    '{' CONT2D '}'{
     $$->dims_count_1 = dims_count_1;
     $$->dims_count_2 = dims_count_2;
 
-    $$->arr_dims.push_back(to_string(dims_count_1));
     $$->arr_dims.push_back(to_string(dims_count_2));
+    $$->arr_dims.push_back(to_string(dims_count_1));
 
     
 }
@@ -1318,12 +1413,12 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
                     }
                     param_size += Size[entry->type[i][0]];
                 }
-                emit("+", "%rsp", to_string(stack_top), "%rsp" );
+                emit("-", "%rsp", to_string(stack_top), "%rsp" );
                 for(int i=entry->type.size()-2;i>=0;i--){
                     emit("push", $3->arg_addr[i],"", "");
                 }
                 emit("call", $1->lexeme + ", " + to_string($3->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
-                emit("-", "%rsp", to_string(stack_top + param_size), "%rsp" );
+                emit("+", "%rsp", to_string(stack_top + param_size), "%rsp" );
                 param_size = 0;
             }
             else{
@@ -1360,17 +1455,18 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
                         }
                         param_size += Size[entry->type[i][0]];
                     }
-                    emit("+", "%rsp", to_string(stack_top), "%rsp" );
-                    for(int i=entry->type.size()-2;i>=0;i--){
-                        emit("push", $3->arg_addr[i],"", "");
-                    }
-                    emit("call", $1->lexeme + ", " + to_string($3->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
-                    emit("-", "%rsp", to_string(stack_top + param_size), "%rsp" );
-                    param_size = 0;
+                    
                     if(entry->mod_flag == PUBLIC_FLAG){
                         $$->type = *(entry->type.rbegin());
                         $$->addr = get_temp($$->type);
-                        emit("call", $1->typevec[1] + ", " + to_string($3->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
+                        emit("-", "%rsp", to_string(stack_top), "%rsp" );
+                        for(int i=entry->type.size()-2;i>=0;i--){
+                            emit("push", $3->arg_addr[i],"", "");
+                        }
+                        emit("call", $1->lexeme + ", " + to_string($3->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
+                        emit("+", "%rsp", to_string(stack_top + param_size), "%rsp" );
+                        param_size = 0;
+                        // emit("call", $1->typevec[1] + ", " + to_string($3->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
                     }
                     else{
                         yyerror("Non-Public member " + $1->typevec[1] + " of class " + $1->typevec[0] + " cannot be accessed");
@@ -2400,14 +2496,6 @@ PrimaryNoNewArray:  LIT{
                     }
                     param_size += Size[entry->type[i][0]];
                 }
-                if(stack_top)
-                emit("+", "%rsp", to_string(stack_top), "%rsp" );
-                for(int i=entry->type.size()-2;i>=0;i--){
-                    emit("push", $4->arg_addr[i],"", "");
-                }
-                emit("call", *$2 + ", " + to_string($4->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
-                if(stack_top + param_size)
-                emit("-", "%rsp", to_string(stack_top + param_size), "%rsp" );
                 param_size = 0;
             }
             else{
@@ -2808,6 +2896,12 @@ ClassDeclaration: MOD_EMPTY_LIST KEY_CLASS ID{CREATE_ST_KEY(temp,*$3);temp->type
 
     //end scope
     current = current->parent;
+    CREATE_ST_KEY(temp,*$3);
+    temp->type.push_back(TYPE_CLASS);
+    SymbTbl_entry* temp_entry = lookup(temp);
+    temp_entry->offset = stack_top;
+    prev_stack_top = 0;
+    stack_top = 0;
 }
 ;
 
@@ -2874,7 +2968,7 @@ MethodDeclaration: MOD_EMPTY_LIST Meth_Head{emit("push", "%rbp","",""); emit("",
     emit("funcend", $2->lexeme, "", "");
     flag_return = 0;
     is_stat_scope = 0;
-    stack_top = 0;
+    stack_top = prev_stack_top;
 }
 ;
 
@@ -2976,6 +3070,8 @@ Meth_decl:  ID '('{retType = dType;} Param_list ')'{
     stat_flag = 0;
 
     emit("func", *$1, "", "");
+    prev_stack_top = stack_top;
+    stack_top = 0;
 }
 |           ID '('{retType = dType;} ')'{
     vector<treeNode*> v;
@@ -3000,6 +3096,8 @@ Meth_decl:  ID '('{retType = dType;} Param_list ')'{
     stat_flag = 0;
 
     emit("func", *$1, "", "");
+    prev_stack_top = stack_top;
+    stack_top = 0;
 }
 ;
 
