@@ -3,9 +3,8 @@ public class A{
 }
 public class B{
     int func(){
-        int a,b,c;
-        a = (b+c) + (b*c) + (b-c) + (b/c);
-        c = b+1;
+        int a,b;
+        a = (a+b) + ((a+b) + ((a+b) + ((a+b) + ((a+b) + ((a+b) + ((a+b) + ((a+b))))))));
     }
     // int foo(int bc, int ab){
     //     return bc+ab;

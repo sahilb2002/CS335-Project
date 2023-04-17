@@ -61,6 +61,7 @@ struct SymbTbl_entry{
     
     struct addr_desc{
         string reg;
+        int temp_free;
         bool in_mem; // if in mem or not, if in mem addr is given by offset if on stack.
         bool stack;
     } addr_desc;

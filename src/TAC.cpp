@@ -5,6 +5,8 @@ using namespace std;
 
 vector<quad> code;
 extern int temp_addr;
+extern int stack_top;
+extern map<char, int> Size;
 
 void emit(qel_t op, qel_t arg1, qel_t arg2, qel_t res){
     if(op == GOTO || op == CALL || op == ASSERT_FAIL)
@@ -21,6 +23,8 @@ qel_t get_temp(string type){
     CREATE_ST_KEY(temp_key, temp);
     CREATE_ST_ENTRY(temp_entry, "Register", temp, -1, 0);
     temp_entry->type.push_back(type);
+    stack_top += Size[type[0]];
+    temp_entry->offset = stack_top;
     insert_symtbl(temp_key, temp_entry);
     return temp;
 }

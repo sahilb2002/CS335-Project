@@ -19,11 +19,11 @@ using namespace std;
 #define RDX "rdx"
 #define RSI "rsi"
 #define RDI "rdi"
-#define R8 "r8"
-#define R9 "r9"
+#define R8  "r8" 
+#define R9  "r9" 
 #define R10 "r10"
 #define R11 "r11"
-#define R12"r12"
+#define R12 "r12"
 #define R13 "r13"
 #define R14 "r14"
 #define R15 "r15"
@@ -42,6 +42,6 @@ reg get_free_reg();
 // free_reg frees the register r
 // returns 0 on success, -1 if no such reg r
 int free_reg(reg r);
-reg get_reg(quad instr);
+reg get_reg(quad& instr);
 
 #endif

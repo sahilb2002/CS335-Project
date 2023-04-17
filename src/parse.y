@@ -797,6 +797,7 @@ DEF_VAR: STAT FIN DTYPE VAR_LIST{
     temp_entry->stat_flag = stat_flag || is_stat_scope;
     temp_entry->fin_flag = fin_flag;
     if(dType != TYPE_INT && dType != TYPE_LONG && dType != TYPE_FLOAT && dType != TYPE_DOUBLE && dType != TYPE_CHAR && dType != TYPE_BOOL && dType != TYPE_STRING && dType != TYPE_SHORT){
+        // object
         CREATE_ST_KEY(temp, dType);
         temp->type.push_back(TYPE_CLASS);
         stack_top += lookup(temp)->offset;
@@ -1528,7 +1529,7 @@ Assignment: LeftHandSide AssignmentOperator Expr{
 
     $$->first_instr = $1->first_instr;
     $$->last_instr = code.size();
-    emit("", $3->addr, "", $1->lexeme);
+    emit("", $3->addr, "", $1->addr);
     // emit("", $1->addr, "", $1->lexeme);
     flag_array = 0; 
 }
@@ -1592,6 +1593,7 @@ ExpressionName:  AmbiguousName '.' ID{
         }
         $$->type = entry->type[0];
         $$->fin_flag = entry->fin_flag;
+        $$->addr = $$->lexeme;
     }
     else{
         $$->type = TYPE_ERROR;
@@ -2371,8 +2373,8 @@ PostfixExpression:              Primary{
         yyerror("Undeclared variable " + $1->lexeme);
     }
     $$ = $1;
-    $$->addr = get_temp($$->type);
-    emit("", $$->lexeme, "", $$->addr);
+    // $$->addr = get_temp($$->type);
+    // emit("", $$->lexeme, "", $$->addr);
 }
 |                               PostIncrementExpression{
     $$ = $1;
@@ -2611,8 +2613,11 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         SymbTbl_entry* entry = lookup(temp);
         string w = get_temp($1->type.substr(0, $1->type.size()-2));
         emit("*", $3->addr,to_string(Size[$1->type[0]]),w);
+        string t;
         for(int i=arr_d; i<entry->arr_dims.size(); i++){
-            emit("*", entry->arr_dims[i], w, w);
+            t = get_temp($1->type.substr(0, $1->type.size()-2));
+            emit("*", entry->arr_dims[i], w, t);
+            w=t;
         }
         $$->addr = w;
         $$->lexeme = $1->lexeme;
@@ -2648,11 +2653,14 @@ ArrayAccess:    ExpressionName '[' Expr ']'{
         string w=get_temp($1->type.substr(0, $1->type.size()-2));
         emit("*", $3->addr,to_string(Size[$1->type[0]]),w);
 
+        string t;
         for(int i=arr_d; i<entry->arr_dims.size(); i++){
-            emit("*", entry->arr_dims[i], w, w);
+            t = get_temp($1->type.substr(0, $1->type.size()-2));
+            emit("*", entry->arr_dims[i], w, t);
+            w = t;
         }
         $$->type = $1->type.substr(0, $1->type.size()-2);
-        $$->addr = w;
+        $$->addr = get_temp($$->type);
         $$->fin_flag = entry->fin_flag;
         $$->lexeme = $1->lexeme;
         emit("+", $1->addr, w, $$->addr);
