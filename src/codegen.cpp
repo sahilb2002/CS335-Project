@@ -7,6 +7,18 @@ typedef vector<string> x86_instr;
 vector<x86_instr> x86_code;
 
 vector<int>leaders;
+
+bool is_int(string s){
+    if(s[0] == '-' || s[0] == '+')
+        s = s.substr(1, s.size()-1);
+
+    for(int i=0; i<s.size(); i++){
+        if(s[i] < '0' || s[i] > '9')
+            return false;
+    }
+    return true;
+}
+
 void basicBlock(){
     for(int i=0; i<code.size(); i++){
         if(i==0){
@@ -164,3 +176,288 @@ reg get_reg_res(var arg){
     x86_code.push_back(ins);
     return minreg;
 }
+
+void bin_op(quad instr){
+    if(is_int(instr.arg1.first) && is_int(instr.arg2.first)){
+        // both are constants
+        int res = 0;
+        if(instr.op.first[0]='+') res = stoi(instr.arg1.first) + stoi(instr.arg2.first);
+        else if(instr.op.first[0]='-') res = stoi(instr.arg1.first) - stoi(instr.arg2.first);
+        else if(instr.op.first[0]='*') res = stoi(instr.arg1.first) * stoi(instr.arg2.first);
+        else if(instr.op.first[0]='^') res = stoi(instr.arg1.first) ^ stoi(instr.arg2.first);
+        else if(instr.op.first[0]='|') res = stoi(instr.arg1.first) | stoi(instr.arg2.first);
+        else if(instr.op.first[0]='&') res = stoi(instr.arg1.first) & stoi(instr.arg2.first);
+        
+        string reg = get_reg_res(instr.res);
+        x86_instr ins = {"mov", "$" + to_string(res), reg};
+        x86_code.push_back(ins);
+        instr.res.second->addr_desc.reg = reg;
+        instr.res.second->addr_desc.in_mem = false;
+        reg_map[reg].push_back(instr.res);
+        return;
+    }
+    string reg1, reg2;
+
+    if(is_int(instr.arg1.first)) reg1 = "$" + instr.arg1.first;
+    else reg1 = get_reg_arg(instr.arg1);
+
+    if(is_int(instr.arg2.first)) reg2 = "$" + instr.arg2.first;
+    else reg2 = get_reg_res(instr.arg2);
+
+    instr.res.second->addr_desc.reg = reg2;
+    instr.res.second->addr_desc.in_mem = false;
+    reg_map[reg2].push_back(instr.res);
+
+    x86_instr ins;
+
+    if(instr.op.first[0]='+') ins = {"add", reg1, reg2};
+    else if(instr.op.first[0]='-') ins = {"sub", reg1, reg2};
+    else if(instr.op.first[0]='*') ins = {"imul", reg1, reg2};
+    else if(instr.op.first[0]='^') ins = {"xor", reg1, reg2};
+    else if(instr.op.first[0]='|') ins = {"or", reg1, reg2};
+    else if(instr.op.first[0]='&') ins = {"and", reg1, reg2};    
+
+    return;
+}
+
+void un_op(quad instr){
+    string reg1;
+
+    reg1 = get_reg_res(instr.arg1);
+
+    instr.res.second->addr_desc.reg = reg1;
+    instr.res.second->addr_desc.in_mem = false;
+    reg_map[reg1].push_back(instr.res);
+
+    x86_instr ins;
+
+    if(instr.op.first[0]='-') ins = {"neg", reg1};
+    if(instr.op.first[0]='!') ins = {"not", reg1};
+
+    return;
+}
+
+// void assign(quad instr){
+//     string reg1;
+
+//     if(is_int(instr.arg1.first)) reg1 = '$' + instr.arg1.first;
+//     else reg1 = get_reg_arg(instr.arg1);
+
+//     instr.res.second->addr_desc.reg = reg1;
+//     instr.res.second->addr_desc.in_mem = false;
+//     reg_map[reg1].push_back(instr.res);
+
+//     return;
+// }
+
+void shift_op(quad instr){
+    string reg1, reg2;
+    if(is_int(instr.arg2.first)) reg1 = "$" + instr.arg2.first;
+    else reg1= "$1";
+
+    if(is_int(instr.arg1.first)){
+        int k=0;
+        if(is_int(instr.arg2.first)){
+            k=stoi(instr.arg2.first)
+        }
+        else k=1;
+
+        int res = stoi(instr.arg1.first);
+        if(instr.op.first=="<<") res = res << k;
+        if(instr.op.first==">>") res = res >> k;
+
+        string reg = get_reg_res(instr.res);
+        x86_instr ins = {"mov", "$" + to_string(res), reg};
+        x86_code.push_back(ins);
+        instr.res.second->addr_desc.reg = reg;
+        return;
+    }
+
+    reg2 = get_reg_res(instr.arg1);
+    instr.res.second->addr_desc.reg = reg2;
+    instr.res.second->addr_desc.in_mem = false;
+    reg_map[reg2].push_back(instr.res);
+
+    x86_instr ins;
+
+    if(instr.op.first=="<<") ins = {"shl", reg1, reg2};
+    if(instr.op.first==">>") ins = {"shr", reg1, reg2};
+
+    return;
+}
+
+void div_op(quad instr){
+    if(is_int(instr.arg1.first) && is_int(instr.arg2.first)){
+        int res;
+        if(instr.op.first[0]=='/') res = stoi(instr.arg1.first) / stoi(instr.arg2.first);
+        else res = stoi(instr.arg1.first) % stoi(instr.arg2.first);
+        string reg = get_reg_res(instr.res);
+        x86_instr ins = {"mov", "$" + to_string(res), reg};
+        x86_code.push_back(ins);
+        instr.res.second->addr_desc.reg = reg;
+        instr.res.second->addr_desc.in_mem = false;
+        return;
+    }
+    string reg1;
+    if(is_int(instr.arg2.first)) reg1 = "$" + instr.arg2.first;
+    else reg1 = get_reg_arg(instr.arg2);
+
+    free_reg(RAX);
+    free_reg(RDX);
+
+    if(is_int(instr.arg1.first)){ 
+        x86_instr ins = {"mov", "$" + instr.arg1.first, RAX};
+        x86_code.push_back(ins);
+    } 
+    else{
+        res2 = get_reg_res(instr.arg1);
+        if(res2 != RAX){
+            x86_instr ins = {"mov", res2, RAX};
+            x86_code.push_back(ins);
+        }
+    }   
+
+    ins = {"cqo"};
+    x86_code.push_back(ins);
+    ins = {"idiv", reg1};
+    x86_code.push_back(ins);
+    
+    if(instr.op.first[0]=='/') reg1 = RAX;
+    else reg1 = RDX;
+
+    instr.res.second->addr_desc.reg = reg1;
+    instr.res.second->addr_desc.in_mem = false;
+    reg_map[reg1].push_back(instr.res);
+    return;
+}
+
+void comp_op(quad instr){
+    if(is_int(instr.arg1.first) && is_int(instr.arg2.first)){
+        int res=0;
+        if(instr.op.first=="<") res = stoi(instr.arg1.first) < stoi(instr.arg2.first);
+        else if(instr.op.first==">") res = stoi(instr.arg1.first) > stoi(instr.arg2.first);
+        else if(instr.op.first=="==") res = stoi(instr.arg1.first) == stoi(instr.arg2.first);
+        else if(instr.op.first == "!=") res = stoi(instr.arg1.first) != stoi(instr.arg2.first);
+        else if(instr.op.first == "<=") res = stoi(instr.arg1.first) <= stoi(instr.arg2.first);
+        else if(instr.op.first == ">=") res = stoi(instr.arg1.first) >= stoi(instr.arg2.first);
+
+        string reg = get_reg_res(instr.res);
+        x86_instr ins = {"mov", "$" + to_string(res), reg};
+        x86_code.push_back(ins);
+        instr.res.second->addr_desc.reg = reg;
+        instr.res.second->addr_desc.in_mem = false;
+        return;
+    }
+
+    string reg1, reg2;
+
+    if(is_int(instr.arg1.first)) reg1 = "$" + instr.arg1.first;
+    else reg1 = get_reg_arg(instr.arg1);
+
+    if(is_int(instr.arg2.first)) reg2 = "$" + instr.arg2.first;
+    else reg2 = get_reg_arg(instr.arg2);
+
+    x86_instr ins = {"cmp", reg1, reg2};
+    x86_code.push_back(ins);
+
+    string op;
+
+    if(instr.op.first=="<") op = "setl";
+    else if(instr.op.first==">") op = "setg";
+    else if(instr.op.first=="==") op = "sete";
+    else if(instr.op.first == "!=") op = "setne";
+    else if(instr.op.first == "<=") op = "setle";
+    else if(instr.op.first == ">=") op = "setge";
+
+    reg1 = get_reg_res(instr.res);
+    ins = {op, reg1};
+    x86_code.push_back(ins);
+
+    instr.res.second->addr_desc.reg = reg1;
+    instr.res.second->addr_desc.in_mem = false;
+    reg_map[reg1].push_back(instr.res);
+    return;
+}
+
+void jmp_instr(quad instr){
+    if(instr.op.first == "goto"){
+        x86_instr ins = {"jmp", instr.idx};
+        x86_code.push_back(ins);
+        return;
+    }
+    if(instr.op.first == "ifFalse"){
+        string reg1 = get_reg_arg(instr.arg1);
+        x86_instr ins = {"cmp", "$0", reg1};
+        x86_code.push_back(ins);
+        ins = {"je", instr.idx};
+        x86_code.push_back(ins);
+        return;
+    }
+}
+
+
+
+
+void gen_x86_code(){
+    x86_code.clear();
+    for(int i=0;i<leaders.size();i++){
+        int start = leaders[i];
+        int end = (i+1 < leaders.size()) ? leaders[i+1] : code.size();
+        for(int j=start;j<end;j++){
+            if(code[j].op.first == "func"){
+                x86_instr ins = {"func", code[j].op.second};
+                x86_code.push_back(ins);
+                continue;
+            }
+            if(code[j].op.first == "call"){
+                x86_instr ins = {"call", code[j].op.second};
+                x86_code.push_back(ins);
+                continue;
+            }
+            if(code[j].op.first == "ret"){
+                x86_instr ins = {"ret"};
+                x86_code.push_back(ins);
+                continue;
+            }
+            if(code[j].op.first == "push"){
+                reg r = get_reg_arg(code[j].op.second);
+                x86_instr ins = {"push", r};
+                x86_code.push_back(ins);
+                continue;
+            }
+            if(code[j].op.first == "label"){
+                x86_instr ins = {"label", code[j].op.second};
+                x86_code.push_back(ins);
+                continue;
+            }
+            if(code[j].op.first == "goto" | code[j].op.first == "ifFalse"){
+                jmp_instr(code[j]);
+                continue;
+            }
+            if(code[j].op.first == "+" | code[j].op.first == "-" | code[j].op.first == "*" | code[j].op.first == "^" | code[j].op.first == "|" | code[j].op.first == "&" ){
+                if(code[j].res == "%rsp"){
+                    if(code[j].op.first == "+"){
+                        x86_instr ins = {"add", "$" + code[j].arg1.first, code[j].res};
+                        x86_code.push_back(ins);
+                    }
+                    else if(code[j].op.first == "-"){
+                        x86_instr ins = {"sub", "$" + code[j].arg1.first, code[j].res};
+                        x86_code.push_back(ins);
+                    }
+                }
+                else bin_op(code[j]);
+                continue;
+            } 
+            if(code[j].op.first == "/" | code[j].op.first == "%"){
+                div_op(code[j]);
+                continue;
+            }
+            if(code[j].op.first == "<" | code[j].op.first == ">" | code[j].op.first == "==" | code[j].op.first == "!=" | code[j].op.first == "<=" | code[j].op.first == ">="){
+                comp_op(code[j]);
+                continue;
+            }
+
+        }
+    }
+}
+            
