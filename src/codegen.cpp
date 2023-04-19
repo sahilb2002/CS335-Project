@@ -71,14 +71,15 @@ int free_reg(reg r){
             x86_instr ins = {"mov", r, to_string(location) + "(" + RBP + ")"};
             x86_code.push_back(ins);
             vars.second->addr_desc.in_mem = true;
-            vars.second->addr_desc.reg = NO_FREE_REG;
         }
+        vars.second->addr_desc.reg = NO_FREE_REG;
     }
     it->second.clear();
     return 0;
 }
 
 reg get_reg_arg(var arg){
+    // for argument 1
     if(arg.second->addr_desc.reg != NO_FREE_REG){
         // it is present in some register.
         return arg.second->addr_desc.reg;
@@ -87,6 +88,8 @@ reg get_reg_arg(var arg){
     if(freereg != NO_FREE_REG){
         int location = -arg.second->offset;
         x86_instr ins = {"mov",to_string(location) + "(" + RBP + ")", freereg};
+        reg_map[freereg].push_back(arg);
+        arg.second->addr_desc.reg = freereg;
         return freereg;
     }
     int mincount = INT_MAX;
@@ -112,25 +115,18 @@ reg get_reg_arg(var arg){
     int location = -arg.second->offset;
     x86_instr ins = {"mov",to_string(location) + "(" + RBP + ")", minreg};
     x86_code.push_back(ins);
+    reg_map[minreg].push_back(arg);
+    arg.second->addr_desc.reg = minreg;
     return minreg;
 
 }
 reg get_reg_res(var arg){
+    // reg for argument 2
     if(arg.second->addr_desc.reg != NO_FREE_REG){
         // it is present in some register.
         reg resreg = arg.second->addr_desc.reg;
-        // remove all other vars except arg from reg_map[reg] and store them to memory
-        for(auto it: reg_map[resreg]){
-            if(it.first != arg.first && it.second != NULL && !it.second->addr_desc.in_mem){
-                int location = -it.second->offset;
-                x86_instr ins = {"mov", resreg, to_string(location) + "(" + RBP + ")"};
-                x86_code.push_back(ins);
-                it.second->addr_desc.in_mem = true;
-                it.second->addr_desc.reg = NO_FREE_REG;
-            }
-        }
-        reg_map[resreg].clear();
-        reg_map[resreg].push_back(arg);
+        // remove all vars  from reg_map[resreg]
+        free_reg(resreg);
         return resreg;
     }
     reg freereg = get_free_reg();
