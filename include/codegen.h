@@ -38,10 +38,39 @@ void basicBlock();
 
 void init_reg_map();
 reg get_free_reg();
-
-// free_reg frees the register r
-// returns 0 on success, -1 if no such reg r
 int free_reg(reg r);
-reg get_reg(quad& instr);
+
+bool is_int(string s);
+
+void init_reg_map();
+
+reg get_reg_arg(var arg);
+reg get_reg_res(var arg);
+
+void bin_op(quad instr);
+
+void un_op(quad instr);
+
+// void assign(quad instr){
+//     string reg1;
+
+//     if(is_int(instr.arg1.first)) reg1 = '$' + instr.arg1.first;
+//     else reg1 = get_reg_arg(instr.arg1);
+
+//     instr.res.second->addr_desc.reg = reg1;
+//     instr.res.second->addr_desc.in_mem = false;
+//     reg_map[reg1].push_back(instr.res);
+
+//     return;
+// }
+
+void shift_op(quad instr);
+void div_op(quad instr);
+void comp_op(quad instr);
+void assign(quad instr);
+void jmp_instr(quad instr);
+void gen_x86_code();
+            
+
 
 #endif

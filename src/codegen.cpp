@@ -1,4 +1,5 @@
 #include <codegen.h>
+#include <iostream>
 
 #define INT_MAX 198
 extern vector<quad>code;
@@ -7,6 +8,7 @@ typedef vector<string> x86_instr;
 vector<x86_instr> x86_code;
 
 vector<int>leaders;
+using namespace std;
 
 bool is_int(string s){
     if(s[0] == '-' || s[0] == '+')
@@ -43,17 +45,18 @@ map<reg, reg_desc> reg_map;
 void init_reg_map(){
     reg_map.clear();
     reg_map.insert({RAX, {}});
-    reg_map.insert({RBX, {}});
-    reg_map.insert({RCX, {}});
-    reg_map.insert({RDX, {}});
-    reg_map.insert({RSI, {}});
-    reg_map.insert({RDI, {}});
-    reg_map.insert({R8, {}});
-    reg_map.insert({R9, {}});
-    reg_map.insert({R10, {}});
-    reg_map.insert({R12, {}});
-    reg_map.insert({R13, {}});
-    reg_map.insert({R14, {}});
+    // reg_map.insert({RBX, {}});
+    // reg_map.insert({RCX, {}});
+    // reg_map.insert({RDX, {}});
+    // reg_map.insert({RSI, {}});
+    // reg_map.insert({RDI, {}});
+    // reg_map.insert({R8, {}});
+    // reg_map.insert({R9, {}});
+    // reg_map.insert({R10, {}});
+    // reg_map.insert({R11, {}});
+    // reg_map.insert({R12, {}});
+    // reg_map.insert({R13, {}});
+    // reg_map.insert({R14, {}});
     reg_map.insert({R15, {}});
 }
 
@@ -97,10 +100,13 @@ reg get_reg_arg(var arg){
     }
     reg freereg = get_free_reg();
     if(freereg != NO_FREE_REG){
+        arg.second->addr_desc.reg = freereg;
+        reg_map[freereg].push_back(arg);
         int location = -arg.second->offset;
         x86_instr ins = {"mov",to_string(location) + "(" + RBP + ")", freereg};
         return freereg;
     }
+    cout << "HE2" << endl;
     int mincount = INT_MAX;
     reg minreg;
     for(auto it:reg_map){
@@ -124,10 +130,14 @@ reg get_reg_arg(var arg){
     int location = -arg.second->offset;
     x86_instr ins = {"mov",to_string(location) + "(" + RBP + ")", minreg};
     x86_code.push_back(ins);
+    arg.second->addr_desc.reg = minreg;
+    reg_map[minreg].push_back(arg);
+    
     return minreg;
 
 }
 reg get_reg_res(var arg){
+    // if(arg.second==NULL)cout << "He" << endl;
     if(arg.second->addr_desc.reg != NO_FREE_REG){
         // it is present in some register.
         reg resreg = arg.second->addr_desc.reg;
@@ -147,6 +157,8 @@ reg get_reg_res(var arg){
     }
     reg freereg = get_free_reg();
     if(freereg != NO_FREE_REG){
+        // arg.second->addr_desc.reg = freereg;
+        // reg_map[freereg].push_back(arg);
         int location = -arg.second->offset;
         x86_instr ins = {"mov",to_string(location) + "(" + RBP + ")", freereg};
         return freereg;
@@ -197,11 +209,12 @@ void bin_op(quad instr){
         return;
     }
     string reg1, reg2;
-
     if(is_int(instr.arg1.first)) reg1 = "$" + instr.arg1.first;
     else reg1 = get_reg_arg(instr.arg1);
 
-    if(is_int(instr.arg2.first)) reg2 = "$" + instr.arg2.first;
+    if(is_int(instr.arg2.first)){
+        reg2 = "$" + instr.arg2.first;
+    }
     else reg2 = get_reg_res(instr.arg2);
 
     instr.res.second->addr_desc.reg = reg2;
@@ -217,6 +230,7 @@ void bin_op(quad instr){
     else if(instr.op.first[0]='|') ins = {"or", reg1, reg2};
     else if(instr.op.first[0]='&') ins = {"and", reg1, reg2};    
 
+    x86_code.push_back(ins);
     return;
 }
 
@@ -234,18 +248,64 @@ void un_op(quad instr){
     if(instr.op.first[0]='-') ins = {"neg", reg1};
     if(instr.op.first[0]='!') ins = {"not", reg1};
 
+    x86_code.push_back(ins);
     return;
 }
 
+//Assigning a value to a variable
+void assign(quad instr){
+    string reg1, reg2;
+    if(is_int(instr.arg1.first)){
+        reg1 = '$' + instr.arg1.first;
+        reg2 = get_reg_res(instr.res);
+        instr.res.second->addr_desc.reg = reg2;
+        instr.res.second->addr_desc.in_mem = false;
+        reg_map[reg2].push_back(instr.res);
+    }
+    else if(instr.arg1.first == "%rbp" || instr.arg1.first == "%rsp"){
+        reg1 = instr.arg1.first;
+        reg2 = instr.res.first;
+    }
+    else{
+        reg1 = get_reg_arg(instr.arg1);
+        instr.res.second->addr_desc.reg = reg1;
+        instr.res.second->addr_desc.in_mem = false;
+        reg_map[reg1].push_back(instr.res);
+        return;
+    }
+    x86_instr ins = {"mov", reg1, reg2};
+    x86_code.push_back(ins);
+    return;
+}
 // void assign(quad instr){
 //     string reg1;
 
-//     if(is_int(instr.arg1.first)) reg1 = '$' + instr.arg1.first;
-//     else reg1 = get_reg_arg(instr.arg1);
+//     if(instr.arg1.first == "%rbp" || instr.arg1.first == "%rsp"){
+//         reg1 = instr.arg1.first;
+//     }
+//     else{
+//         if(is_int(instr.arg1.first)) reg1 = '$' + instr.arg1.first;
+//         else{
+//             reg1 = get_reg_arg(instr.arg1);
+//             instr.res.second->addr_desc.reg = reg1;
+//             instr.res.second->addr_desc.in_mem = false;
+//             reg_map[reg1].push_back(instr.res);
+//         }
+//     }
 
-//     instr.res.second->addr_desc.reg = reg1;
-//     instr.res.second->addr_desc.in_mem = false;
-//     reg_map[reg1].push_back(instr.res);
+//     cout << "HEY2" << endl;
+//     string reg2;
+//     if(instr.res.first == "%rbp" || instr.res.first == "%rsp"){
+//         reg2 = instr.res.first;
+//     }
+//     else{
+//         if(is_int(instr.res.first)) reg2 = '$' + instr.res.first;
+//         else reg2 = get_reg_res(instr.res);
+//         cout << reg2;
+//     }
+//     cout << "HEY" << endl;
+//     x86_instr ins = {"mov", reg1, reg2};
+//     x86_code.push_back(ins);
 
 //     return;
 // }
@@ -258,7 +318,7 @@ void shift_op(quad instr){
     if(is_int(instr.arg1.first)){
         int k=0;
         if(is_int(instr.arg2.first)){
-            k=stoi(instr.arg2.first)
+            k=stoi(instr.arg2.first);
         }
         else k=1;
 
@@ -310,14 +370,14 @@ void div_op(quad instr){
         x86_code.push_back(ins);
     } 
     else{
-        res2 = get_reg_res(instr.arg1);
+        string res2 = get_reg_res(instr.arg1);
         if(res2 != RAX){
             x86_instr ins = {"mov", res2, RAX};
             x86_code.push_back(ins);
         }
     }   
 
-    ins = {"cqo"};
+    x86_instr ins = {"cqo"};
     x86_code.push_back(ins);
     ins = {"idiv", reg1};
     x86_code.push_back(ins);
@@ -381,7 +441,7 @@ void comp_op(quad instr){
 
 void jmp_instr(quad instr){
     if(instr.op.first == "goto"){
-        x86_instr ins = {"jmp", instr.idx};
+        x86_instr ins = {"jmp", to_string(instr.idx)};
         x86_code.push_back(ins);
         return;
     }
@@ -389,7 +449,7 @@ void jmp_instr(quad instr){
         string reg1 = get_reg_arg(instr.arg1);
         x86_instr ins = {"cmp", "$0", reg1};
         x86_code.push_back(ins);
-        ins = {"je", instr.idx};
+        ins = {"je", to_string(instr.idx)};
         x86_code.push_back(ins);
         return;
     }
@@ -400,18 +460,20 @@ void jmp_instr(quad instr){
 
 void gen_x86_code(){
     x86_code.clear();
+    init_reg_map();
+    basicBlock();
     for(int i=0;i<leaders.size();i++){
         int start = leaders[i];
         int end = (i+1 < leaders.size()) ? leaders[i+1] : code.size();
         for(int j=start;j<end;j++){
             if(code[j].op.first == "func"){
-                x86_instr ins = {"func", code[j].op.second};
-                x86_code.push_back(ins);
+                // x86_instr ins = {"func", code[j].op.second};
+                // x86_code.push_back(ins);
                 continue;
             }
             if(code[j].op.first == "call"){
-                x86_instr ins = {"call", code[j].op.second};
-                x86_code.push_back(ins);
+                // x86_instr ins = {"call", code[j].op.second};
+                // x86_code.push_back(ins);
                 continue;
             }
             if(code[j].op.first == "ret"){
@@ -420,35 +482,35 @@ void gen_x86_code(){
                 continue;
             }
             if(code[j].op.first == "push"){
-                reg r = get_reg_arg(code[j].op.second);
-                x86_instr ins = {"push", r};
-                x86_code.push_back(ins);
+                // reg r = get_reg_arg(code[j].op.second);
+                // x86_instr ins = {"push", r};
+                // x86_code.push_back(ins);
                 continue;
             }
             if(code[j].op.first == "label"){
-                x86_instr ins = {"label", code[j].op.second};
-                x86_code.push_back(ins);
+                // x86_instr ins = {"label", code[j].op.second};
+                // x86_code.push_back(ins);
                 continue;
             }
             if(code[j].op.first == "goto" | code[j].op.first == "ifFalse"){
                 jmp_instr(code[j]);
                 continue;
             }
-            if(code[j].op.first == "+" | code[j].op.first == "-" | code[j].op.first == "*" | code[j].op.first == "^" | code[j].op.first == "|" | code[j].op.first == "&" ){
-                if(code[j].res == "%rsp"){
+            if(code[j].op.first[0] == '+' | code[j].op.first[0] == '-' | code[j].op.first[0] == '*' | code[j].op.first[0] == '^' | code[j].op.first[0] == '|' | code[j].op.first[0] == '&' ){
+                if(code[j].res.first == "%rsp"){
                     if(code[j].op.first == "+"){
-                        x86_instr ins = {"add", "$" + code[j].arg1.first, code[j].res};
+                        x86_instr ins = {"add", "$" + code[j].arg1.first, code[j].res.first};
                         x86_code.push_back(ins);
                     }
                     else if(code[j].op.first == "-"){
-                        x86_instr ins = {"sub", "$" + code[j].arg1.first, code[j].res};
+                        x86_instr ins = {"sub", "$" + code[j].arg1.first, code[j].res.first};
                         x86_code.push_back(ins);
                     }
                 }
                 else bin_op(code[j]);
                 continue;
             } 
-            if(code[j].op.first == "/" | code[j].op.first == "%"){
+            if(code[j].op.first[0] == '/' | code[j].op.first[0] == '%'){
                 div_op(code[j]);
                 continue;
             }
@@ -456,8 +518,18 @@ void gen_x86_code(){
                 comp_op(code[j]);
                 continue;
             }
-
+            if(code[j].op.first == ""){
+                cout << code[j].res.first << " " << code[j].arg1.first << " " << code[j].arg2.first << endl;
+                assign(code[j]);
+                continue;
+            }
         }
+    }
+    for(auto it:x86_code){
+        for(auto ir:it){
+            cout<<ir<<" ";
+        }
+        cout << endl;
     }
 }
             

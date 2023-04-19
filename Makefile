@@ -1,8 +1,8 @@
 INC=include
 default: main
 
-main: parse.tab.o AST.o lex.yy.o symbol_table.o typecheck.o TAC.o
-	g++ -I $(INC) src/parse.tab.o src/AST.o src/lex.yy.o src/symbol_table.o src/typecheck.o src/TAC.o -o main
+main: parse.tab.o AST.o lex.yy.o symbol_table.o typecheck.o TAC.o codegen.o
+	g++ -I $(INC) src/parse.tab.o src/AST.o src/lex.yy.o src/symbol_table.o src/typecheck.o src/TAC.o src/codegen.o -o main
 
 lex.yy.o: lex.yy.c
 	g++ -I $(INC) -c src/lex.yy.c -o src/lex.yy.o
@@ -28,6 +28,9 @@ typecheck.o: src/typecheck.cpp include/typecheck.h
 
 TAC.o: src/TAC.cpp include/TAC.h
 	g++ -I $(INC) -c src/TAC.cpp -o src/TAC.o
+
+codegen.o: src/codegen.cpp include/codegen.h
+	g++ -I $(INC) -c src/codegen.cpp -o src/codegen.o
 
 # main:
 # 	bison -t src/parse.y --output=src/parse.tab.c --defines=include/parse.tab.h
