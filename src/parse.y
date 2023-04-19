@@ -6,6 +6,7 @@
     #include<symbol_table.h>
     #include<typecheck.h>
     #include<TAC.h>
+    #include<codegen.h>
     #include<map>
     #include<cstring>
 
@@ -959,6 +960,8 @@ DEF_VAR: STAT FIN DTYPE VAR_LIST{
         yyerror("Variable already declared: " + $1->lexeme);
     }
     free(temp);
+    emit("",$1->addr,"",$1->lexeme);
+
 
     $$->first_instr = $1->first_instr;
     $$->last_instr = $1->last_instr;
@@ -984,7 +987,8 @@ VARA:   ID '=' Expr{
         emit($3->type + "TO" + dType, $3->addr, "", temp);
         $3->addr = temp;
     }
-    emit("",$3->addr,"",*$1);
+    $$->addr = $3->addr;
+    //emit("",$3->addr,"",*$1);
     $$->type = dType;
 
     $$->first_instr = $3->first_instr;
@@ -1010,12 +1014,11 @@ VARA:   ID '=' Expr{
         yyerror("Type Mismatch " + $6->type + " cannot be typecasted to " + dType + TYPE_ARRAY);
     }
     if($3->addr != "" && $3->addr != $6->arr_dims[0]){
-        // cout<<"$1 "<<$3->addr<<" "<<$6->arr_dims[0]<<endl;
         yyerror("Size Mismatch");
     }
 
     $$->arr_dims = $6->arr_dims;
-
+    $$->addr = $3->addr;
     $$->first_instr = $3->first_instr;
     $$->last_instr = code.size()-1;
 }
@@ -1033,7 +1036,7 @@ VARA:   ID '=' Expr{
     insertAttr(v, temp, "", 1);
     insertAttr(v, $9, "", 1);
     $$ = makenode("=", v);
-
+    $$->addr = $3->addr;
     $$->lexeme = *$1;
     $$->dim = 2;
     // sematics
@@ -1092,7 +1095,7 @@ VARA:   ID '=' Expr{
         yyerror("Size Mismatch");
     }
     $$->arr_dims = $12->arr_dims;
-
+    $$->addr = $3->addr;
     $$->first_instr = $3->first_instr;
     $$->last_instr = code.size()-1;
 }
@@ -3377,6 +3380,7 @@ int main(int argc, char** argv) {
     }
     if(dotfile)
     fclose(dotfile);
+    gen_x86_code();
 
     return 0;
 }

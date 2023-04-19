@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <iostream>
 #include <symbol_table.h>
 using namespace std;
 
