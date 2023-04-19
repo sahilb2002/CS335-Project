@@ -5,8 +5,9 @@ public class B{
     int func(){
         int a = 2;
         int b = 1;
-        int c = (a+b);
-        int d = 1+b;
+        int c = b+a;
+        // int d = (b+1)*c + (a/b)%23 + a;
+        int e = (a<b)>>6 & !(c<a);
     }
     // int func(){
     //     int a,b;

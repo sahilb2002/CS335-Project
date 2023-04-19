@@ -45,18 +45,18 @@ map<reg, reg_desc> reg_map;
 void init_reg_map(){
     reg_map.clear();
     reg_map.insert({RAX, {}});
-    // reg_map.insert({RBX, {}});
-    // reg_map.insert({RCX, {}});
-    // reg_map.insert({RDX, {}});
-    // reg_map.insert({RSI, {}});
-    // reg_map.insert({RDI, {}});
-    // reg_map.insert({R8, {}});
-    // reg_map.insert({R9, {}});
-    // reg_map.insert({R10, {}});
-    // reg_map.insert({R11, {}});
-    // reg_map.insert({R12, {}});
-    // reg_map.insert({R13, {}});
-    // reg_map.insert({R14, {}});
+    reg_map.insert({RBX, {}});
+    reg_map.insert({RCX, {}});
+    reg_map.insert({RDX, {}});
+    reg_map.insert({RSI, {}});
+    reg_map.insert({RDI, {}});
+    reg_map.insert({R8, {}});
+    reg_map.insert({R9, {}});
+    reg_map.insert({R10, {}});
+    reg_map.insert({R11, {}});
+    reg_map.insert({R12, {}});
+    reg_map.insert({R13, {}});
+    reg_map.insert({R14, {}});
     reg_map.insert({R15, {}});
 }
 
@@ -76,9 +76,10 @@ int free_reg(reg r){
     for(auto vars: it->second){
         if(!vars.second){
             // symbltbl entry is null
+            cout<<"bhhkhvhhf"<<endl;
             continue;
         }
-        if(!vars.second->addr_desc.in_mem){
+        if(!vars.second->addr_desc.in_mem && vars.second->addr_desc.temp_free!=1){
             // var is not in mem so need to push it to its location in stack.
 
             // assumes all vars are in stack.
@@ -105,6 +106,7 @@ reg get_reg_arg(var arg){
         reg_map[freereg].push_back(arg);
         int location = -arg.second->offset;
         x86_instr ins = {"mov",to_string(location) + "(" + RBP + ")", freereg};
+        x86_code.push_back(ins);
         reg_map[freereg].push_back(arg);
         arg.second->addr_desc.reg = freereg;
         return freereg;
@@ -142,6 +144,7 @@ reg get_reg_res(var arg){
     // reg for argument 2
     // if(arg.second==NULL)cout << "He" << endl;
     if(arg.second->addr_desc.reg != NO_FREE_REG){
+        // cout<<arg.first<<" "<<" in reg "<<arg.second->addr_desc.reg<<endl;
         // it is present in some register.
         reg resreg = arg.second->addr_desc.reg;
         // remove all vars  from reg_map[resreg]
@@ -154,6 +157,7 @@ reg get_reg_res(var arg){
         // reg_map[freereg].push_back(arg);
         int location = -arg.second->offset;
         x86_instr ins = {"mov",to_string(location) + "(" + RBP + ")", freereg};
+        x86_code.push_back(ins);
         return freereg;
     }
     int mincount = INT_MAX;
@@ -186,12 +190,12 @@ void bin_op(quad instr){
     if(is_int(instr.arg1.first) && is_int(instr.arg2.first)){
         // both are constants
         int res = 0;
-        if(instr.op.first[0]='+') res = stoi(instr.arg1.first) + stoi(instr.arg2.first);
-        else if(instr.op.first[0]='-') res = stoi(instr.arg1.first) - stoi(instr.arg2.first);
-        else if(instr.op.first[0]='*') res = stoi(instr.arg1.first) * stoi(instr.arg2.first);
-        else if(instr.op.first[0]='^') res = stoi(instr.arg1.first) ^ stoi(instr.arg2.first);
-        else if(instr.op.first[0]='|') res = stoi(instr.arg1.first) | stoi(instr.arg2.first);
-        else if(instr.op.first[0]='&') res = stoi(instr.arg1.first) & stoi(instr.arg2.first);
+        if(instr.op.first[0]=='+') res = stoi(instr.arg1.first) + stoi(instr.arg2.first);
+        else if(instr.op.first[0]=='-') res = stoi(instr.arg1.first) - stoi(instr.arg2.first);
+        else if(instr.op.first[0]=='*') res = stoi(instr.arg1.first) * stoi(instr.arg2.first);
+        else if(instr.op.first[0]=='^') res = stoi(instr.arg1.first) ^ stoi(instr.arg2.first);
+        else if(instr.op.first[0]=='|') res = stoi(instr.arg1.first) | stoi(instr.arg2.first);
+        else if(instr.op.first[0]=='&') res = stoi(instr.arg1.first) & stoi(instr.arg2.first);
         
         string reg = get_reg_res(instr.res);
         x86_instr ins = {"mov", "$" + to_string(res), reg};
@@ -200,6 +204,12 @@ void bin_op(quad instr){
         instr.res.second->addr_desc.in_mem = false;
         reg_map[reg].push_back(instr.res);
         return;
+    }
+    if(is_int(instr.arg2.first)){
+        var temp;
+        temp = instr.arg1;
+        instr.arg1 = instr.arg2;
+        instr.arg2 = temp;
     }
     string reg1, reg2;
     if(is_int(instr.arg1.first)) reg1 = "$" + instr.arg1.first;
@@ -216,12 +226,12 @@ void bin_op(quad instr){
 
     x86_instr ins;
 
-    if(instr.op.first[0]='+') ins = {"add", reg1, reg2};
-    else if(instr.op.first[0]='-') ins = {"sub", reg1, reg2};
-    else if(instr.op.first[0]='*') ins = {"imul", reg1, reg2};
-    else if(instr.op.first[0]='^') ins = {"xor", reg1, reg2};
-    else if(instr.op.first[0]='|') ins = {"or", reg1, reg2};
-    else if(instr.op.first[0]='&') ins = {"and", reg1, reg2};    
+    if(instr.op.first[0]=='+') ins = {"add", reg1, reg2};
+    else if(instr.op.first[0]=='-') ins = {"sub", reg1, reg2};
+    else if(instr.op.first[0]=='*') ins = {"imul", reg1, reg2};
+    else if(instr.op.first[0]=='^') ins = {"xor", reg1, reg2};
+    else if(instr.op.first[0]=='|') ins = {"or", reg1, reg2};
+    else if(instr.op.first[0]=='&') ins = {"and", reg1, reg2};    
 
     x86_code.push_back(ins);
     return;
@@ -230,7 +240,7 @@ void bin_op(quad instr){
 void un_op(quad instr){
     string reg1;
 
-    reg1 = get_reg_res(instr.arg1);
+    reg1 = get_reg_res(instr.arg2);
 
     instr.res.second->addr_desc.reg = reg1;
     instr.res.second->addr_desc.in_mem = false;
@@ -238,8 +248,8 @@ void un_op(quad instr){
 
     x86_instr ins;
 
-    if(instr.op.first[0]='-') ins = {"neg", reg1};
-    if(instr.op.first[0]='!') ins = {"not", reg1};
+    if(instr.op.first[0]=='-') ins = {"neg", reg1};
+    if(instr.op.first[0]=='!') ins = {"not", reg1};
 
     x86_code.push_back(ins);
     return;
@@ -335,6 +345,7 @@ void shift_op(quad instr){
 
     if(instr.op.first=="<<") ins = {"shl", reg1, reg2};
     if(instr.op.first==">>") ins = {"shr", reg1, reg2};
+    x86_code.push_back(ins);
 
     return;
 }
@@ -355,20 +366,23 @@ void div_op(quad instr){
     if(is_int(instr.arg2.first)) reg1 = "$" + instr.arg2.first;
     else reg1 = get_reg_arg(instr.arg2);
 
-    free_reg(RAX);
-    free_reg(RDX);
 
     if(is_int(instr.arg1.first)){ 
+        free_reg(RAX);
+        free_reg(RDX);
         x86_instr ins = {"mov", "$" + instr.arg1.first, RAX};
         x86_code.push_back(ins);
     } 
     else{
-        string res2 = get_reg_res(instr.arg1);
+        string res2 = get_reg_arg(instr.arg1);
+        free_reg(RAX);
+        free_reg(RDX);
         if(res2 != RAX){
             x86_instr ins = {"mov", res2, RAX};
             x86_code.push_back(ins);
         }
     }   
+
 
     x86_instr ins = {"cqo"};
     x86_code.push_back(ins);
@@ -459,37 +473,37 @@ void gen_x86_code(){
         int start = leaders[i];
         int end = (i+1 < leaders.size()) ? leaders[i+1] : code.size();
         for(int j=start;j<end;j++){
+            // cout<<j<<endl;
             if(code[j].op.first == "func"){
                 // x86_instr ins = {"func", code[j].op.second};
                 // x86_code.push_back(ins);
-                continue;
             }
-            if(code[j].op.first == "call"){
-                // x86_instr ins = {"call", code[j].op.second};
-                // x86_code.push_back(ins);
-                continue;
-            }
-            if(code[j].op.first == "ret"){
-                x86_instr ins = {"ret"};
+            else if(code[j].op.first == "call"){
+                x86_instr ins = {"call", code[j].arg1.first};
                 x86_code.push_back(ins);
-                continue;
             }
-            if(code[j].op.first == "push"){
-                // reg r = get_reg_arg(code[j].op.second);
-                // x86_instr ins = {"push", r};
-                // x86_code.push_back(ins);
-                continue;
+            else if(code[j].op.first == "ret"){
+                x86_instr ins = {"ret", code[j].arg1.first};
+                x86_code.push_back(ins);
             }
-            if(code[j].op.first == "label"){
-                // x86_instr ins = {"label", code[j].op.second};
-                // x86_code.push_back(ins);
-                continue;
+            else if(code[j].op.first == "push"){
+                reg r;
+                if(code[j].arg1.first == "%rbp")
+                r = "%rbp";
+                else
+                r = get_reg_arg(code[j].arg1);
+                x86_instr ins = {"push", r};
+                x86_code.push_back(ins);
             }
-            if(code[j].op.first == "goto" | code[j].op.first == "ifFalse"){
+            else if(code[j].op.first == "label"){
+                x86_instr ins = {"label", code[j].arg1.first};
+                x86_code.push_back(ins);
+            }
+            else if(code[j].op.first == "goto" | code[j].op.first == "ifFalse"){
                 jmp_instr(code[j]);
-                continue;
             }
-            if(code[j].op.first[0] == '+' | code[j].op.first[0] == '-' | code[j].op.first[0] == '*' | code[j].op.first[0] == '^' | code[j].op.first[0] == '|' | code[j].op.first[0] == '&' ){
+            else if(code[j].op.first[0] == '+' | code[j].op.first[0] == '-' | code[j].op.first[0] == '*' | code[j].op.first[0] == '^' | code[j].op.first[0] == '|' | code[j].op.first[0] == '&' ){
+                cout<<j<<" op: "<<code[j].op.first<<endl;
                 if(code[j].res.first == "%rsp"){
                     if(code[j].op.first == "+"){
                         x86_instr ins = {"add", "$" + code[j].arg1.first, code[j].res.first};
@@ -501,20 +515,34 @@ void gen_x86_code(){
                     }
                 }
                 else bin_op(code[j]);
-                continue;
             } 
-            if(code[j].op.first[0] == '/' | code[j].op.first[0] == '%'){
+            else if(code[j].op.first[0] == '/' | code[j].op.first[0] == '%'){
                 div_op(code[j]);
                 continue;
             }
-            if(code[j].op.first == "<" | code[j].op.first == ">" | code[j].op.first == "==" | code[j].op.first == "!=" | code[j].op.first == "<=" | code[j].op.first == ">="){
+            else if(code[j].op.first == "<" | code[j].op.first == ">" | code[j].op.first == "==" | code[j].op.first == "!=" | code[j].op.first == "<=" | code[j].op.first == ">="){
                 comp_op(code[j]);
-                continue;
             }
-            if(code[j].op.first == ""){
+            else if(code[j].op.first == ""){
                 cout << code[j].res.first << " " << code[j].arg1.first << " " << code[j].arg2.first << endl;
                 assign(code[j]);
-                continue;
+            }
+            else if (code[j].op.first == "<<" || code[j].op.first == ">>"){
+                // cout<<"jo\n";
+                shift_op(code[j]);
+            }
+            else if(code[j].op.first == "!" || code[j].op.first == "-"){
+                un_op(code[j]);
+            }
+
+
+            if(code[j].arg1.first[0]=='#'){
+                // cout<<"temp: "<<code[j].arg1.first<<endl;
+                code[j].arg1.second->addr_desc.temp_free = 1;
+            }
+            if(code[j].arg2.first[0]=='#'){
+                // cout<<"temp: "<<code[j].arg2.first<<endl;
+                code[j].arg2.second->addr_desc.temp_free = 1;
             }
         }
     }

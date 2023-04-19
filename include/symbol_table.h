@@ -67,7 +67,11 @@ struct SymbTbl_entry{
     } addr_desc;
     int next_use=-1;
     
-    SymbTbl_entry(string cat, string lex, unsigned int l,int mod):category(cat), lexeme(lex), lineno(l), mod_flag(mod), func_is_defined(true), is_func(false){}
+    SymbTbl_entry(string cat, string lex, unsigned int l,int mod):category(cat), lexeme(lex), lineno(l), mod_flag(mod), func_is_defined(true), is_func(false){
+        addr_desc.reg = "";
+        addr_desc.temp_free = 0;
+        addr_desc.in_mem = true;
+    }
     SymbTbl_entry():category(""), lexeme(""), lineno(0), func_is_defined(true), is_func(false){}
 };
 
