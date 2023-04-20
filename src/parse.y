@@ -50,13 +50,13 @@
     int fin_flag = 0;
 
     map<char, int> Size ={
-        {'I', 4},
-        {'F', 4},
+        {'I', 8},
+        {'F', 8},
         {'D', 8},
         {'L', 8},
-        {'C', 2},
-        {'S', 2},
-        {'B', 1},
+        {'C', 8},
+        {'S', 8},
+        {'B', 8},
         
     };
     
@@ -1436,61 +1436,67 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
     }
     else{
         // ExpressionName is ID.ID.ID...
-        CREATE_ST_KEY(temp, $1->typevec[0]);
-        temp->type.push_back(TYPE_CLASS);
-        SymbTbl_entry* entry = lookup(temp);
-        if(entry){
-            SymbolTable* classTable = entry->table;
-            CREATE_ST_KEY(classTemp, $1->typevec[1]);
-            auto it = classTable->table.find(*classTemp);
-            if(it != classTable->table.end()){
-                SymbTbl_entry* entry = it->second;
+        if($1->lexeme == "System.out.println"){
+            emit("print", $3->arg_addr[0], "", "");
+        }
+        else{
+            CREATE_ST_KEY(temp, $1->typevec[0]);
+            temp->type.push_back(TYPE_CLASS);
+            SymbTbl_entry* entry = lookup(temp);
+            if(entry){
+                SymbolTable* classTable = entry->table;
+                CREATE_ST_KEY(classTemp, $1->typevec[1]);
+                auto it = classTable->table.find(*classTemp);
+                if(it != classTable->table.end()){
+                    SymbTbl_entry* entry = it->second;
 
-                if(compareMethTypes(entry->type, $3->typevec)){
-                    $$->type = *(entry->type.rbegin());
-                    // if(is_stat_scope && !entry->stat_flag){
-                    //     yyerror("cannot call non static function " + entry->lexeme + " from static scope");
-                    // }
-                    $$->addr = get_temp($$->type);
-                    param_size = 0;
-                    for(int i=0;i<entry->type.size()-1;i++){
-                        if(entry->type[i] != $3->typevec[i]){
-                            emit($3->typevec[i] + "TO" + entry->type[i], "", $3->arg_addr[i], $3->arg_addr[i]);
-                        }
-                        param_size += Size[entry->type[i][0]];
-                    }
-                    
-                    if(entry->mod_flag == PUBLIC_FLAG){
+                    if(compareMethTypes(entry->type, $3->typevec)){
                         $$->type = *(entry->type.rbegin());
+                        // if(is_stat_scope && !entry->stat_flag){
+                        //     yyerror("cannot call non static function " + entry->lexeme + " from static scope");
+                        // }
                         $$->addr = get_temp($$->type);
-                        emit("-", "%rsp", to_string(stack_top), "%rsp" );
-                        for(int i=entry->type.size()-2;i>=0;i--){
-                            emit("push", $3->arg_addr[i],"", "");
-                        }
-                        emit("call", $1->lexeme + ", " + to_string($3->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
-                        emit("+", "%rsp", to_string(stack_top + param_size), "%rsp" );
                         param_size = 0;
-                        // emit("call", $1->typevec[1] + ", " + to_string($3->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
+                        for(int i=0;i<entry->type.size()-1;i++){
+                            if(entry->type[i] != $3->typevec[i]){
+                                emit($3->typevec[i] + "TO" + entry->type[i], "", $3->arg_addr[i], $3->arg_addr[i]);
+                            }
+                            param_size += Size[entry->type[i][0]];
+                        }
+                        
+                        if(entry->mod_flag == PUBLIC_FLAG){
+                            $$->type = *(entry->type.rbegin());
+                            $$->addr = get_temp($$->type);
+                            emit("-", "%rsp", to_string(stack_top), "%rsp" );
+                            for(int i=entry->type.size()-2;i>=0;i--){
+                                emit("push", $3->arg_addr[i],"", "");
+                            }
+                            emit("call", $1->lexeme + ", " + to_string($3->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
+                            emit("+", "%rsp", to_string(stack_top + param_size), "%rsp" );
+                            param_size = 0;
+                            // emit("call", $1->typevec[1] + ", " + to_string($3->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
+                        }
+                        else{
+                            yyerror("Non-Public member " + $1->typevec[1] + " of class " + $1->typevec[0] + " cannot be accessed");
+                        }
                     }
                     else{
-                        yyerror("Non-Public member " + $1->typevec[1] + " of class " + $1->typevec[0] + " cannot be accessed");
+                        yyerror("Invalid Argument Types for Method " + $1->lexeme);
                     }
-                }
-                else{
-                    yyerror("Invalid Argument Types for Method " + $1->lexeme);
-                }
 
-            }
-            else {
-                yyerror("No method " + $1->typevec[1] + " found in class " + $1->typevec[0]);
+                }
+                else {
+                    yyerror("No method " + $1->typevec[1] + " found in class " + $1->typevec[0]);
 
+                }
+                free(classTemp);
             }
-            free(classTemp);
-        }
         else{
             yyerror("No class " + $1->type + " found");
         }
+        
         free(temp);
+        }
     }
     $$->last_instr = code.size()-1;
 }
