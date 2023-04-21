@@ -40,3 +40,4 @@ clean:
 	rm -f main src/parse.tab.c src/parse.tab.h src/lex.yy.c include/parse.tab.h tac.txt
 	rm -rf symbol_tables
 	rm -f src/*.o
+	rm -rf x86_code.*
