@@ -872,6 +872,7 @@ DEF_VAR: STAT FIN DTYPE VAR_LIST{
     if(err == ALREADY_EXIST){
         yyerror("Variable already declared: " + $3->lexeme);
     }
+    emit("",$1->addr,"",$1->lexeme);
     free(temp);
 
     $$->first_instr = $1->first_instr;
@@ -1421,7 +1422,7 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
                 for(int i=entry->type.size()-2;i>=0;i--){
                     emit("push", $3->arg_addr[i],"", "");
                 }
-                emit("call", $1->lexeme + ", " + to_string($3->typevec.size()), to_string(entry->func_entry_addr), $$->addr);
+                emit("call", $1->lexeme, to_string(entry->func_entry_addr), $$->addr);
                 emit("+", "%rsp", to_string(stack_top + param_size), "%rsp" );
                 param_size = 0;
             }
@@ -1437,7 +1438,7 @@ Meth_invoc: ExpressionName '(' ARG_LIST ')'{
     else{
         // ExpressionName is ID.ID.ID...
         if($1->lexeme == "System.out.println"){
-            emit("print", $3->arg_addr[0], "", "");
+            emit("print", $3->arg_addr[0], to_string(stack_top), "");
         }
         else{
             CREATE_ST_KEY(temp, $1->typevec[0]);
@@ -2242,7 +2243,7 @@ UnaryExpression:            PreIncrementExpression{$$ = $1;}
     //3ac
     $$->addr = $2->addr;
     $$->first_instr = $2->first_instr;
-    emit("+", "", $2->addr, $$->addr);
+    emit("+", "0", $2->addr, $$->addr);
     $$->last_instr = code.size()-1;
 }
 |                           '-' UnaryExpression{
@@ -2256,7 +2257,7 @@ UnaryExpression:            PreIncrementExpression{$$ = $1;}
     //3ac
     $$->addr = get_temp($$->type);
     $$->first_instr = $2->first_instr;
-    emit("-", "", $2->addr, $$->addr);
+    emit("-", "0", $2->addr, $$->addr);
     $$->last_instr = code.size()-1;
 }
 |                           UnaryExpressionNotPlusMinus{$$ = $1;}

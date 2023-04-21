@@ -165,8 +165,8 @@ ESCAPE_SEQUENCE "\\b"|"\\s"|"\\t"|"\\n"|"\\f"|"\\r"|"\\\""|"\\\'"|"\\\\"
 "&&"    return LOG_AND;
 "=="    return EQUAL;
 "!="    return NOT_EQUAL;
-"<="    return GTR_EQUAL;
-">="    return LESS_EQUAL;
+">="    return GTR_EQUAL;
+"<="    return LESS_EQUAL;
 "<<"    return LEFT_SHIFT;
 ">>"    return RIGHT_SHIFT;
 ">>>"   return SIGN_SHIFT;

@@ -199,7 +199,6 @@ reg get_reg_res(var arg){
 }
 
 void bin_op(quad instr){
-    swap(instr.arg1, instr.arg2);
     if(is_int(instr.arg1.first) && is_int(instr.arg2.first)){
         // both are constants
         int res = 0;
@@ -211,6 +210,8 @@ void bin_op(quad instr){
         else if(instr.op.first[0]=='&') res = stoi(instr.arg1.first) & stoi(instr.arg2.first);
         
         string reg = get_reg_res(instr.res);
+        cout << to_string(res) << endl;
+        cout << res << endl;
         x86_instr ins = {"movq\t", "$" + to_string(res)+", ", reg};
         x86_code.push_back(ins);
         instr.res.second->addr_desc.reg = reg;
@@ -218,6 +219,7 @@ void bin_op(quad instr){
         reg_map[reg].push_back(instr.res);
         return;
     }
+    swap(instr.arg1, instr.arg2);
     if(is_int(instr.arg2.first)){
         var temp;
         temp = instr.arg1;
@@ -285,6 +287,12 @@ void assign(quad instr){
     }
     else{
         reg1 = get_reg_arg(instr.arg1);
+        cout<<reg1<<" "<<instr.arg1.first << " "<<instr.arg2.first<<" "<<instr.res.first<<endl;
+        if(instr.res.second->addr_desc.reg != NO_FREE_REG){
+           // remove instr.res from reg_map
+            reg2 = instr.res.second->addr_desc.reg;
+            reg_map[reg2].erase(remove(reg_map[reg2].begin(), reg_map[reg2].end(), instr.res), reg_map[reg2].end());
+        }
         instr.res.second->addr_desc.reg = reg1;
         instr.res.second->addr_desc.in_mem = false;
         reg_map[reg1].push_back(instr.res);
@@ -364,6 +372,58 @@ void shift_op(quad instr){
     return;
 }
 
+void array_access(quad instr){
+    // cout<<instr.arg1.first<<" "<<instr.arg2.first<<" "<<instr.res.first<<" "<<instr.op.first<<endl;
+    //     string reg = get_reg_arg(code[j].arg1);
+    //     string reg1 = get_reg_arg(code[j].arg2);
+    //     free_reg(RAX);
+    //     x86_instr ins = {"movq\t", reg + ",", RAX};
+    //     x86_code.push_back(ins);
+    //     ins = {"movq\t", reg1 + ",", RDI};
+    //     x86_code.push_back(ins);
+    //     ins = {"movq\t", "8(" + RAX + "), ", RAX};
+    //     x86_code.push_back(ins);
+    //     ins = {"movq\t", "8(" + RAX + ", " + RDI + ", 8), ", RAX};
+    //     x86_code.push_back(ins);
+    //     code[j].res.second->addr_desc.reg = RAX;
+    //     code[j].res.second->addr_desc.in_mem = false;
+    //     reg_map[RAX].push_back(code[j].res);
+    string reg1, reg2, reg3;
+    reg1 = get_reg_arg(instr.arg1);
+    reg2 = get_reg_arg(instr.arg2);
+    reg3 = get_reg_res(instr.res);
+    x86_instr ins = {"movq\t", reg1+", ", reg3};
+    x86_code.push_back(ins);
+    ins = {"movq\t", reg2+", ", "%rax"};
+    x86_code.push_back(ins);
+    ins = {"imulq\t", "$8, ", "%rax"};
+    x86_code.push_back(ins);
+    ins = {"addq\t", "%rax, ", reg3};
+    x86_code.push_back(ins);
+    instr.res.second->addr_desc.reg = reg3;
+    instr.res.second->addr_desc.in_mem = false;
+    reg_map[reg3].push_back(instr.res);
+    return;
+}
+
+void new_op(quad instr){
+    string reg = get_reg_arg(instr.arg1);
+    free_reg(RAX);
+    x86_instr ins = {"movq\t", reg + ",", RAX};
+    x86_code.push_back(ins);
+    ins = {"movq\t", "$8, ", RDI};
+    x86_code.push_back(ins);
+    ins = {"call\t", "malloc@PLT"};
+    x86_code.push_back(ins);
+    ins = {"movq\t", "$0, ", "8(%rax)"};
+    x86_code.push_back(ins);
+    ins = {"movq\t", "%rax, ", instr.res.second->addr_desc.reg};
+    x86_code.push_back(ins);
+    
+    instr.res.second->addr_desc.in_mem = false;
+    reg_map[instr.res.second->addr_desc.reg].push_back(instr.res);
+}
+
 void div_op(quad instr){
     if(is_int(instr.arg1.first) && is_int(instr.arg2.first)){
         int res;
@@ -377,25 +437,32 @@ void div_op(quad instr){
         return;
     }
     string reg1;
-    if(is_int(instr.arg2.first)) reg1 = "$" + instr.arg2.first;
-    else reg1 = get_reg_arg(instr.arg2);
-
-
     if(is_int(instr.arg1.first)){ 
         free_reg(RAX);
         free_reg(RDX);
+        reg1 = get_reg_arg(instr.arg2);
+        // if(reg1 != RDX){
+        //     x86_instr ins = {"movq\t", reg1+", ", RDX};
+        //     // reg1 = RDX;
+        //     x86_code.push_back(ins);
+        // }
         x86_instr ins = {"movq\t", "$" + instr.arg1.first+", ", RAX};
         x86_code.push_back(ins);
     } 
     else{
-        string res2 = get_reg_arg(instr.arg1);
         free_reg(RAX);
         free_reg(RDX);
+        string res2 = get_reg_arg(instr.arg1);
         if(res2 != RAX){
             x86_instr ins = {"movq\t", res2+", ", RAX};
             x86_code.push_back(ins);
         }
+        free_reg(R10);
+        reg1 = R10;
+        x86_instr ins = {"movq\t", "$" + instr.arg2.first+", ", R10};
+        x86_code.push_back(ins);
     }   
+
 
 
     x86_instr ins = {"cqo"};
@@ -452,6 +519,10 @@ void comp_op(quad instr){
     else if(instr.op.first == ">=") op = "setge\t";
 
     reg1 = get_reg_res(instr.res);
+    // if(instr.res.first[0]=='#'){
+    // }
+    ins = {"movq", "\t$0, ", reg1};
+    x86_code.push_back(ins);
     ins = {op, reg1+"b"};
     x86_code.push_back(ins);
 
@@ -507,8 +578,11 @@ void gen_x86_code(){
         int end = (i+1 < leaders.size()) ? leaders[i+1] : code.size();
         // cout<<"end "<<end<<endl;
         for(int j=start;j<end;j++){
-            // cout<<"k "<<j<<endl;
+            // cout<<"k "<<j<<code[j].op.first<<endl;
             if(code[j].op.first == "print"){
+                int off = stoi(code[j].arg2.first);
+                if(off%16!=0)
+                off+=8;
                 if(is_int(code[j].arg1.first)){
                     free_reg(RSI);
                     x86_instr ins = {"movq\t", "$" + code[j].arg1.first + ",", RSI};
@@ -525,28 +599,94 @@ void gen_x86_code(){
                 free_reg(RDI);
                 x86_instr ins = {"leaq","\t.LC0(%rip), ", RDI};
                 x86_code.push_back(ins);
+                x86_code.push_back({"sub\t", "$"+to_string(off)+", %rsp"});
+                for(auto it:reg_map){
+                    free_reg(it.first);
+                }
                 ins = {"call","\tprintf@PLT"};
                 x86_code.push_back(ins);
+                x86_code.push_back({"add\t", "$"+to_string(off)+", %rsp"});
             }
             else if(code[j].op.first == "func"){
-                // x86_instr ins = {"func", code[j].op.second};
+                x86_instr ins = {code[j].arg1.first + ":"};
+                x86_code.insert(x86_code.begin() + x86_code.size()-1,ins);
+
+            }
+            // else if(code [j].op.first[code[j].op.first.length()-1] == ']'){
+            
+            //     array_access(code[j]);
+            // }
+            // }
+            // else if(code[j].op.first.find("new", 0, code[j].op.first.length()) != 0){
+            //     new_op(code[j]);
+            // }
+            // else if(code[j].op.first == "[]="){
+            //     string reg = get_reg_arg(code[j].arg1);
+            //     string reg1 = get_reg_arg(code[j].arg2);
+            //     string reg2 = get_reg_arg(code[j].res);
+            //     free_reg(RAX);
+            //     x86_instr ins = {"movq\t", reg + ",", RAX};
+            //     x86_code.push_back(ins);
+            //     ins = {"movq\t", reg1 + ",", RDI};
+            //     x86_code.push_back(ins);
+            //     ins = {"movq\t", "8(" + RAX + "), ", RAX};
+            //     x86_code.push_back(ins);
+            //     ins = {"movq\t", reg2 + ",", "8(" + RAX + ", " + RDI + ", 8)"};
+            //     x86_code.push_back(ins);
+            // }
+            else if(code[j].op.first == "funcend"){
+                // x86_instr ins = {"ret"};
                 // x86_code.push_back(ins);
             }
+            
             else if(code[j].op.first == "call"){
+                // push all registers to stack;
+                for(auto it:reg_map){
+                    free_reg(it.first);
+                }
                 x86_instr ins = {"call\t", code[j].arg1.first};
                 x86_code.push_back(ins);
+                if(code[j].res.first != ""){
+                    code[j].res.second->addr_desc.reg = RAX;
+                    code[j].res.second->addr_desc.in_mem = false;
+                    reg_map[RAX].push_back(code[j].res);
+                }
+
             }
             else if(code[j].op.first == "RET"){
+                if(code[j].arg1.first != ""){
+                    reg reg1;
+                    if(is_int(code[j].arg1.first)){
+                        reg1 = RAX;
+                        x86_instr ins = {"movq\t", "$" + code[j].arg1.first + ",", reg1};
+                        x86_code.push_back(ins);
+                    }
+                    else{
+                        reg1 = get_reg_arg(code[j].arg1);
+                        if(reg1!=RAX){
+                            x86_instr ins = {"movq\t", reg1 + ",", RAX};
+                            x86_code.push_back(ins);
+                        }
+                    }
+                }
+                x86_code.push_back({"popq\t", "%rbp"});
                 x86_instr ins = {"ret\t"};
                 x86_code.push_back(ins);
             }
             else if(code[j].op.first == "push"){
                 reg r;
+                // cout<<"here"<<endl;
                 if(code[j].arg1.first == "%rbp")
                 r = "%rbp";
+                else if(is_int(code[j].arg1.first)){
+                    free_reg(RAX);
+                    r = RAX;
+                    x86_instr ins = {"movq\t", "$" + code[j].arg1.first + ",", r};
+                    x86_code.push_back(ins);
+                }
                 else
                 r = get_reg_arg(code[j].arg1);
-                x86_instr ins = {"push\t", r};
+                x86_instr ins = {"pushq\t", r};
                 x86_code.push_back(ins);
             }
             else if(code[j].op.first == "pop"){
@@ -562,11 +702,12 @@ void gen_x86_code(){
                     }
                     
                 }
-                else
+                else{
                     r = get_reg_arg(code[j].arg1);
+                    x86_instr ins = {"pop\t", r};
+                    x86_code.push_back(ins);
+                }
 
-                x86_instr ins = {"pop\t", r};
-                x86_code.push_back(ins);
             }
             else if(code[j].op.first == "label"){
                 x86_instr ins = {"label\t", code[j].arg1.first};
@@ -580,11 +721,11 @@ void gen_x86_code(){
                 // cout<<j<<" op: "<<code[j].op.first<<endl;
                 if(code[j].res.first == "%rsp"){
                     if(code[j].op.first == "+"){
-                        x86_instr ins = {"add\t", "$" + code[j].arg1.first+", ", code[j].res.first};
+                        x86_instr ins = {"add\t", "$" + code[j].arg2.first+", ", code[j].res.first};
                         x86_code.push_back(ins);
                     }
                     else if(code[j].op.first == "-"){
-                        x86_instr ins = {"sub\t", "$" + code[j].arg1.first+", ", code[j].res.first};
+                        x86_instr ins = {"sub\t", "$" + code[j].arg2.first+", ", code[j].res.first};
                         x86_code.push_back(ins);
                     }
                 }
@@ -597,7 +738,7 @@ void gen_x86_code(){
             else if(code[j].op.first == "<" | code[j].op.first == ">" | code[j].op.first == "==" | code[j].op.first == "!=" | code[j].op.first == "<=" | code[j].op.first == ">="){
                 comp_op(code[j]);
             }
-            else if(code[j].op.first == ""){
+            else if(code[j].op.first == "" || code[j].op.first.find("TO")!=code[j].op.first.npos){
                 // cout << code[j].res.first << " " << code[j].arg1.first << " " << code[j].arg2.first << endl;
                 assign(code[j]);
             }
@@ -631,10 +772,9 @@ void gen_x86_code(){
     cout << "\t.string\t\"%d\\n\"" << endl;
     cout << "\t.text" << endl;
     cout << "\t.globl\tmain" << endl;
-    cout << "main:" << endl;
 
     for(auto it:x86_code){
-        if(it[0][0]!='.')cout << "\t";
+        if(it[0][it[0].size()-1]!=':')cout << "\t";
         for(auto ir:it){
             cout<<ir<<" ";
         }
@@ -649,9 +789,8 @@ void gen_x86_code(){
     f << "\t.text" << endl;
     f << "\t.globl\tmain" << endl;
     // f << "\t.type\tmain, @function" << endl;
-    f << "main:" << endl;
     for(auto it:x86_code){
-        if(it[0][0]!='.') f << "\t";
+        if(it[0][it[0].size()-1]!=':') f << "\t";
         for(auto ir:it){
             f<<ir<<" ";
         }
