@@ -54,6 +54,8 @@ struct SymbTbl_entry{
     bool func_is_defined;
     int offset;
     int func_entry_addr;
+    int is_array;
+    int is_global;
     SymbolTable* table;
     SymbTbl_entry* obj_entry;
     string addr;
@@ -71,6 +73,7 @@ struct SymbTbl_entry{
         addr_desc.reg = "";
         addr_desc.temp_free = 0;
         addr_desc.in_mem = true;
+        is_array = 0;
     }
     SymbTbl_entry():category(""), lexeme(""), lineno(0), func_is_defined(true), is_func(false){}
 };

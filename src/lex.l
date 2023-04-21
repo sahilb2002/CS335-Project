@@ -66,6 +66,7 @@ ESCAPE_SEQUENCE "\\b"|"\\s"|"\\t"|"\\n"|"\\f"|"\\r"|"\\\""|"\\\'"|"\\\\"
 "switch" return KEY_SWITCH;
 "case" return KEY_CASE;
 "default" return KEY_DEFAULT;
+"this" return KEY_THIS;
 "throw" return KEY_THROW;
 "do" return KEY_DO;
 

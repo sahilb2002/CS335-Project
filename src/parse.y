@@ -30,6 +30,7 @@
     int stack_top = 0;
     int prev_stack_top = 0;
     int param_size = 0;
+    int is_class_scope = 1;
     bool is_heap_allocated = false;
 
     string dType;
@@ -132,6 +133,7 @@
 %token<str> KEY_FINAL
 %token<str> KEY_PROTECTED
 %token<str> KEY_CLASS
+%token<str> KEY_THIS
 
 
 
@@ -797,12 +799,13 @@ DEF_VAR: STAT FIN DTYPE VAR_LIST{
     temp_entry->arr_dims = $3->arr_dims;
     temp_entry->stat_flag = stat_flag || is_stat_scope;
     temp_entry->fin_flag = fin_flag;
+    temp_entry->is_global = is_class_scope;
     if(dType != TYPE_INT && dType != TYPE_LONG && dType != TYPE_FLOAT && dType != TYPE_DOUBLE && dType != TYPE_CHAR && dType != TYPE_BOOL && dType != TYPE_STRING && dType != TYPE_SHORT){
         // object
         CREATE_ST_KEY(temp, dType);
         temp->type.push_back(TYPE_CLASS);
-        stack_top += lookup(temp)->offset;
         temp_entry->offset = stack_top;
+        stack_top += lookup(temp)->offset;
     }
     else if($3->arr_dims.size()==0){
         stack_top += Size[dType[0]];
@@ -844,11 +847,12 @@ DEF_VAR: STAT FIN DTYPE VAR_LIST{
     temp_entry->arr_dims = $3->arr_dims;
     temp_entry->stat_flag = stat_flag | is_stat_scope;
     temp_entry->fin_flag = fin_flag;
+    temp_entry->is_global = is_class_scope;
     if(dType != TYPE_INT && dType != TYPE_LONG && dType != TYPE_FLOAT && dType != TYPE_DOUBLE && dType != TYPE_CHAR && dType != TYPE_BOOL && dType != TYPE_STRING && dType != TYPE_SHORT){
         CREATE_ST_KEY(temp, dType);
         temp->type.push_back(TYPE_CLASS);
-        stack_top += lookup(temp)->offset;
         temp_entry->offset = stack_top;
+        stack_top += lookup(temp)->offset;
     }
     else if($3->arr_dims.size()==0){
         stack_top += Size[dType[0]];
@@ -888,11 +892,12 @@ DEF_VAR: STAT FIN DTYPE VAR_LIST{
     temp_entry->arr_dims = $1->arr_dims;
     temp_entry->stat_flag = stat_flag | is_stat_scope;
     temp_entry->fin_flag = fin_flag;
+    temp_entry->is_global = is_class_scope;
     if(dType != TYPE_INT && dType != TYPE_LONG && dType != TYPE_FLOAT && dType != TYPE_DOUBLE && dType != TYPE_CHAR && dType != TYPE_BOOL && dType != TYPE_STRING && dType != TYPE_SHORT){
         CREATE_ST_KEY(temp, dType);
         temp->type.push_back(TYPE_CLASS);
-        stack_top += lookup(temp)->offset;
         temp_entry->offset = stack_top;
+        stack_top += lookup(temp)->offset;
     }
     else if($1->arr_dims.size()==0){
         stack_top += Size[dType[0]];
@@ -932,11 +937,12 @@ DEF_VAR: STAT FIN DTYPE VAR_LIST{
     temp_entry->arr_dims = $1->arr_dims;
     temp_entry->stat_flag = stat_flag | is_stat_scope;
     temp_entry->fin_flag = fin_flag;
+    temp_entry->is_global = is_class_scope;
     if(dType != TYPE_INT && dType != TYPE_LONG && dType != TYPE_FLOAT && dType != TYPE_DOUBLE && dType != TYPE_CHAR && dType != TYPE_BOOL && dType != TYPE_STRING && dType != TYPE_SHORT){
         CREATE_ST_KEY(temp, dType);
         temp->type.push_back(TYPE_CLASS);
-        stack_top += lookup(temp)->offset;
         temp_entry->offset = stack_top;
+        stack_top += lookup(temp)->offset;
     }
     else if($1->arr_dims.size()==0){
         stack_top += Size[dType[0]];
@@ -1681,7 +1687,14 @@ LeftHandSide:   ExpressionName{
 |               FieldAccess{$$ = $1;}
 |               ArrayAccess{
                                 $$ = $1;
-                                $$->addr = $1->lexeme + "[" + $1->addr + "]";
+                                string temp = get_temp($1->type);
+                                emit("[+]",$1->lexeme, $1->addr, temp);
+                                // string temp2 = get_temp($1->type);
+                                // emit("", temp,"", temp2);
+                                // CREATE_ST_KEY(temp_key, temp);
+                                // SymbTbl_entry* entry = lookup(temp_key);
+                                $$->addr = temp;
+                                //$$->addr = "[]"+$1->lexeme + "+" + $1->addr ;
                                 flag_array = 0;
                                 if($1->fin_flag){
                                     yyerror("Cannot Reassign Final Variable " + $$->lexeme);
@@ -2433,6 +2446,7 @@ FieldAccess:    Primary '.' ID{
 
 Primary:    PrimaryNoNewArray{
     $$ = $1;
+    //string temp = $1->addr;
     // $$ = new treeNode;
     // flag_array=0;
     // cout<<"hey ";
@@ -2440,10 +2454,15 @@ Primary:    PrimaryNoNewArray{
     // cout<<$$->addr<< $1->lexeme + "[" + $1->addr + "]"<<endl;;
 
     if(flag_array){
-        $$->addr = $1->lexeme + "[" + $1->addr + "]";
+        string temp = get_temp($1->type);
+        emit("[+]",$1->lexeme,$1->addr,temp);
+        string temp2 = get_temp($1->type);
+        emit("",temp,"",temp2);
+        $$->addr = temp2;
+        //$$->addr = "[]"+$1->lexeme + "+" + $1->addr;
         // string id = $1->addr;
         // $$->addr = get_temp($1->type);
-        // emit("", $1->lexeme + "["+ id + "]", "", $$->addr);
+        // emit("+", "[" + $1->lexeme, id + "]", $$->addr);
         flag_array = 0;
     }
     // $$->type= $1->type;
@@ -2530,6 +2549,9 @@ PrimaryNoNewArray:  LIT{
     } 
     free(temp);
     $$->addr = "new obj";
+}
+| KEY_THIS{
+
 }
 ;
 
@@ -2971,7 +2993,7 @@ Class_DEF_VAR:  MOD_EMPTY_LIST DTYPE VAR_LIST ';'{
     mod_flag = PRIVATE_FLAG;
 }
 ;
-MethodDeclaration: MOD_EMPTY_LIST Meth_Head{emit("push", "%rbp","",""); emit("", "%rsp", "","%rbp");} Meth_Body{
+MethodDeclaration: MOD_EMPTY_LIST Meth_Head{emit("push", "%rbp","",""); emit("", "%rsp", "","%rbp"); is_class_scope = 0;} Meth_Body{
     vector<treeNode*> v;
     insertAttr(v, $1, "", 1);
     insertAttr(v, $2, "", 1);
@@ -2987,6 +3009,7 @@ MethodDeclaration: MOD_EMPTY_LIST Meth_Head{emit("push", "%rbp","",""); emit("",
     flag_return = 0;
     is_stat_scope = 0;
     stack_top = prev_stack_top;
+    is_class_scope = 1;
 }
 ;
 
@@ -3067,6 +3090,7 @@ Meth_decl:  ID '('{retType = dType;} Param_list ')'{
     //sematics
     CREATE_ST_KEY(temp, *$1);
     CREATE_ST_ENTRY(temp_entry, "ID", *$1, yylineno, mod_flag);
+    // temp_entry->type.push_back("Long"); // for this pointer
     for(auto p:methKeys){
         temp_entry->type.push_back(p->type[0]);
     }

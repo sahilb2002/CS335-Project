@@ -3,82 +3,89 @@
 	.string	"%d\n"
 	.text
 	.globl	main
-foo: 
+main: 
 .L0: 
 	pushq	 %rbp 
 	movq	 %rsp,  %rbp 
-	movq	 16(%rbp),  %r10 
-	cmp	 $0,  %r10 
-	movq	 -8(%rbp),  %r11 
-	movq 	$0,  %r11 
-	sete	 %r11b 
-	movq	 %r11 , -8(%rbp) 
 	movq	 -8(%rbp),  %r10 
+	movq	 $10,  %r10 
+	movq	 %r10,  %rax 
+	movq	 %r10 , -8(%rbp) 
+	movq	 $7,  %r10 
+	cqo 
+	idivq	 %r10 
+	movq	 %rdx , -24(%rbp) 
+	imul	 $10,  %rdx 
+	movq	 -8(%rbp),  %r10 
+	subq	 %rdx,  %r10 
+	movq	 %r10,  %rax 
+	movq	 %r10 , -48(%rbp) 
+	movq	 $5,  %r10 
+	cqo 
+	idivq	 %r10 
+	movq	 -8(%rbp),  %r10 
+	shl	 $2,  %r10 
+	movq	 %rax , -64(%rbp) 
+	movq	 -48(%rbp),  %r11 
+	movq	 %r11,  %rax 
+	movq	 -8(%rbp),  %r12 
+	cqo 
+	idivq	 %r12 
+	cmp	 $0,  %rdx 
+	movq	 -96(%rbp),  %r13 
+	movq 	$0,  %r13 
+	sete	 %r13b 
+	movq	 %r10 , -80(%rbp) 
+	movq	 %r13 , -96(%rbp) 
+	movq	 -96(%rbp),  %r10 
 	cmp	 $0,  %r10 
 	je	 .L2 
 .L1: 
-	movq	 $1, %rax 
-	popq	 %rbp 
-	ret	 
+	movq	 -64(%rbp),  %r11 
+	movq	 %r11 , -104(%rbp) 
+	jmp	 .L3 
 .L2: 
-	movq	 16(%rbp),  %r10 
-	subq	 $1,  %r10 
-	sub	 $24,  %rsp 
-	pushq	 %r10 
-	call	 foo 
-	add	 $32,  %rsp 
-	movq	 16(%rbp),  %r10 
-	addq	 %rax,  %r10 
-	movq	 %r10 , -32(%rbp) 
-	movq	 -32(%rbp),  %r10 
-	movq	 %r10, %rax 
-	popq	 %rbp 
-	ret	 
-	movq	 $0, %rax 
-	popq	 %rbp 
-	ret	 
-main: 
+	movq	 -80(%rbp),  %r10 
+	movq	 %r10 , -104(%rbp) 
 .L3: 
-	pushq	 %rbp 
-	movq	 %rsp,  %rbp 
-	sub	 $8,  %rsp 
-	movq	 $2, %rax 
-	pushq	 %rax 
-	call	 foo 
-	add	 $16,  %rsp 
+	movq	 -104(%rbp),  %r10 
+	movq	 -8(%rbp),  %r11 
+	movq	 %r11, %rsi 
+	leaq 	.LC0(%rip),  %rdi 
+	sub	 $112, %rsp 
+	movq	 %r10 , -112(%rbp) 
+	call 	printf@PLT 
+	add	 $112, %rsp 
 	movq	 -24(%rbp),  %r10 
-	movq	 $0,  %r10 
-	movq	 %r10 , -24(%rbp) 
-	movq	 %rax , -16(%rbp) 
-.L4: 
-	movq	 -24(%rbp),  %r10 
-	cmp	 $10,  %r10 
-	movq	 -32(%rbp),  %r11 
-	movq 	$0,  %r11 
-	setl	 %r11b 
-	movq	 %r11 , -32(%rbp) 
-	movq	 -32(%rbp),  %r10 
-	cmp	 $0,  %r10 
-	je	 .L8 
-.L5: 
-	jmp	 .L7 
-.L6: 
-	movq	 -24(%rbp),  %r10 
-	movq	 %r10 , -40(%rbp) 
-	addq	 $1,  %r10 
-	movq	 %r10 , -24(%rbp) 
-	jmp	 .L4 
-.L7: 
-	movq	 -16(%rbp),  %r10 
-	addq	 $1,  %r10 
 	movq	 %r10, %rsi 
 	leaq 	.LC0(%rip),  %rdi 
-	sub	 $48, %rsp 
-	movq	 %r10 , -16(%rbp) 
+	sub	 $112, %rsp 
 	call 	printf@PLT 
-	add	 $48, %rsp 
-	jmp	 .L6 
-.L8: 
+	add	 $112, %rsp 
+	movq	 -48(%rbp),  %r10 
+	movq	 %r10, %rsi 
+	leaq 	.LC0(%rip),  %rdi 
+	sub	 $112, %rsp 
+	call 	printf@PLT 
+	add	 $112, %rsp 
+	movq	 -64(%rbp),  %r10 
+	movq	 %r10, %rsi 
+	leaq 	.LC0(%rip),  %rdi 
+	sub	 $112, %rsp 
+	call 	printf@PLT 
+	add	 $112, %rsp 
+	movq	 -80(%rbp),  %r10 
+	movq	 %r10, %rsi 
+	leaq 	.LC0(%rip),  %rdi 
+	sub	 $112, %rsp 
+	call 	printf@PLT 
+	add	 $112, %rsp 
+	movq	 -112(%rbp),  %r10 
+	movq	 %r10, %rsi 
+	leaq 	.LC0(%rip),  %rdi 
+	sub	 $112, %rsp 
+	call 	printf@PLT 
+	add	 $112, %rsp 
 	movq	 $0, %rax 
 	popq	 %rbp 
 	ret	 

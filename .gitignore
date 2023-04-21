@@ -12,3 +12,5 @@
 doc/*
 *.pdf
 src/*.o
+x86_code.s
+x86_code.o
